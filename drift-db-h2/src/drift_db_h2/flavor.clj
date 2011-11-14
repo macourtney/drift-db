@@ -6,7 +6,6 @@
             [clojure.string :as clojure-str]
             [drift-db.protocol :as drift-db-protocol])
   (:import
-    ;[drift-db.protocol Flavor]
     [java.text SimpleDateFormat]
     [org.h2.jdbcx JdbcDataSource]
     [org.h2.jdbc JdbcClob]))
@@ -109,6 +108,33 @@ any keyword into a string, and replaces dashes with underscores."}
 (defn spec-str [spec]
   (clojure-str/join " " (spec-vec spec)))
 
+(def varchar-regex #"VARCHAR\((\d+)\)")
+
+(defn is-string-column [column-type]
+  (re-matches varchar-regex column-type))
+
+(defn parse-type [column-type]
+  (when column-type
+    (cond
+      (is-string-column column-type) :string)))
+
+(defn parse-string-length [column-type]
+  (let [matcher (re-matcher varchar-regex column-type)]
+    (when (.matches matcher)
+      (Integer/parseInt (second (re-groups matcher))))))
+
+(defn parse-length [column-type]
+  (when column-type
+    (cond
+      (is-string-column column-type) (parse-string-length column-type))))
+
+(defn parse-column [column-desc]
+  { :name (:field column-desc)
+    :type (parse-type (:type column-desc))
+    :length (parse-length (:type column-desc))
+    :primary-key (= (:key column-desc) "PRI")
+    :not-null (= (:null column-desc) "NO") })
+
 (deftype H2Flavor [dbname db-dir]
   drift-db-protocol/Flavor
   (db-map [flavor]
@@ -197,7 +223,8 @@ any keyword into a string, and replaces dashes with underscores."}
   (describe-table [flavor table]
     (do
       (logging/debug (str "Describe table: " table))
-      (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))])))
+      { :name table
+        :columns (map parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))])) }))
 
   (delete [flavor table where]
     (do
