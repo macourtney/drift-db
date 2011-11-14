@@ -51,6 +51,13 @@ any keyword into a string, and replaces dashes with underscores."}
   (conjure-loading-utils/dashes-to-underscores (conjure-string-utils/str-keyword column)))
 
 (defn
+#^{:doc "Returns the given key or string as valid column name. Basically turns 
+any keyword into a string, and replaces dashes with underscores."}
+  column-name-key [column-name]
+  (when column-name
+    (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase column-name)))))
+
+(defn
 #^{:doc "Returns the primary key spec vector from the given mods map."}
   auto-increment-mod [column-spec]
   (if (:auto-increment column-spec) ["AUTO_INCREMENT"] []))
@@ -109,31 +116,68 @@ any keyword into a string, and replaces dashes with underscores."}
   (clojure-str/join " " (spec-vec spec)))
 
 (def varchar-regex #"VARCHAR\((\d+)\)")
+(def date-regex #"DATE\((\d+)\)")
 
 (defn is-string-column [column-type]
   (re-matches varchar-regex column-type))
 
+(defn is-date-column [column-type]
+  (re-matches date-regex column-type))
+
 (defn parse-type [column-type]
   (when column-type
     (cond
-      (is-string-column column-type) :string)))
+      (is-string-column column-type) :string
+      (is-date-column column-type) :date)))
 
 (defn parse-string-length [column-type]
   (let [matcher (re-matcher varchar-regex column-type)]
     (when (.matches matcher)
       (Integer/parseInt (second (re-groups matcher))))))
 
+(defn parse-date-length [column-type]
+  (let [matcher (re-matcher date-regex column-type)]
+    (when (.matches matcher)
+      (Integer/parseInt (second (re-groups matcher))))))
+
 (defn parse-length [column-type]
   (when column-type
     (cond
-      (is-string-column column-type) (parse-string-length column-type))))
+      (is-string-column column-type) (parse-string-length column-type)
+      (is-date-column column-type) (parse-date-length column-type))))
+
+(defn add-primary-key [column-map column-desc]
+  (if (= (:key column-desc) "PRI")
+    (assoc column-map :primary-key true)
+    column-map))
+
+(defn add-not-null [column-map column-desc]
+  (if (= (:null column-desc) "NO")
+    (assoc column-map :not-null true)
+    column-map))
+
+(defn add-length [column-map column-desc]
+  (if-let [length (parse-length (:type column-desc))]
+    (assoc column-map :length length)
+    column-map))
+
+(defn add-default [column-map column-desc]
+  (if-let [default (:default column-desc)]
+    (assoc column-map :default default)
+    column-map))
 
 (defn parse-column [column-desc]
-  { :name (:field column-desc)
-    :type (parse-type (:type column-desc))
-    :length (parse-length (:type column-desc))
-    :primary-key (= (:key column-desc) "PRI")
-    :not-null (= (:null column-desc) "NO") })
+  ;(logging/info (str "column-desc: " column-desc))
+  (add-default
+    (add-length
+      (add-not-null
+        (add-primary-key
+          { :name (column-name-key (:field column-desc))
+            :type (parse-type (:type column-desc)) }
+          column-desc)
+        column-desc)
+      column-desc)
+    column-desc))
 
 (deftype H2Flavor [dbname db-dir]
   drift-db-protocol/Flavor

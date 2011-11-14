@@ -7,16 +7,25 @@
 
 (def db-dir "test/db/data/")
 
+(deftest test-parse-column
+  (is (= (parse-column { :default "NULL" :key "PRI" :null "NO" :type "VARCHAR(20)" :field "NAME" })
+          { :default "NULL", :length 20, :not-null true, :primary-key true, :name :name, :type :string }))
+  (is (= (parse-column { :default "NULL" :key "" :null "YES" :type "DATE(8)" :field "CREATED_AT"})
+        { :default "NULL" :length 8 :name :created-at, :type :date })))
+
 (deftest create-flavor
   (let [flavor (h2-flavor dbname db-dir)]
     (try
       (is flavor)
       (drift-db/init-flavor flavor)
       (drift-db/create-table :test
-        (drift-db/string :name { :type :string :length 20 :not-null true :primary-key true }))
+        (drift-db/string :name { :length 20 :not-null true :primary-key true })
+        (drift-db/date :created-at))
       (is (drift-db/table-exists? :test))
       (is (= (drift-db/describe-table :test)
-            { :name :test :columns [{:name "NAME" :type :string :length 20 :not-null true :primary-key true }]}))
+            { :name :test
+              :columns [{ :default "NULL", :length 20, :not-null true, :primary-key true, :name :name, :type :string }
+                        { :default "NULL" :length 8 :name :created-at, :type :date }] }))
       (finally 
         (drift-db/drop-table :test)
         (is (not (drift-db/table-exists? :test)))))))
