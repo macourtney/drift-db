@@ -78,7 +78,7 @@ any keyword into a string, and replaces dashes with underscores."}
   [(column-name (:name column-spec)) "DATE"])
 
 (defmethod column-spec-vec :date-time [column-spec]
-  [(column-name (:name column-spec)) "TIME"])
+  [(column-name (:name column-spec)) "DATETIME"])
 
 (defmethod column-spec-vec :integer [column-spec]
   (concat [(column-name (:name column-spec)) "INT"] (not-null-mod column-spec) (auto-increment-mod column-spec)
@@ -115,69 +115,135 @@ any keyword into a string, and replaces dashes with underscores."}
 (defn spec-str [spec]
   (clojure-str/join " " (spec-vec spec)))
 
-(def varchar-regex #"VARCHAR\((\d+)\)")
 (def date-regex #"DATE\((\d+)\)")
-
-(defn is-string-column [column-type]
-  (re-matches varchar-regex column-type))
+(def date-time-regex #"TIMESTAMP\((\d+)\)")
+(def integer-regex #"INTEGER\((\d+)\)")
+(def decimal-regex #"DECIMAL\((\d+)(,\s*(\d+))?\)")
+(def varchar-regex #"VARCHAR\((\d+)\)")
+(def text-regex #"CLOB\((\d+)\)")
+(def time-regex #"TIME\((\d+)\)")
 
 (defn is-date-column [column-type]
   (re-matches date-regex column-type))
 
+(defn is-date-time-column [column-type]
+  (re-matches date-time-regex column-type))
+
+(defn is-integer-column [column-type]
+  (re-matches integer-regex column-type))
+
+(defn is-decimal-column [column-type]
+  (re-matches decimal-regex column-type))
+
+(defn is-string-column [column-type]
+  (re-matches varchar-regex column-type))
+
+(defn is-text-column [column-type]
+  (re-matches text-regex column-type))
+
+(defn is-time-column [column-type]
+  (re-matches time-regex column-type))
+
 (defn parse-type [column-type]
   (when column-type
     (cond
+      (is-date-column column-type) :date
+      (is-date-time-column column-type) :date-time
+      (is-integer-column column-type) :integer
+      (is-decimal-column column-type) :decimal
       (is-string-column column-type) :string
-      (is-date-column column-type) :date)))
+      (is-text-column column-type) :text
+      (is-time-column column-type) :time)))
 
-(defn parse-string-length [column-type]
-  (let [matcher (re-matcher varchar-regex column-type)]
-    (when (.matches matcher)
-      (Integer/parseInt (second (re-groups matcher))))))
+(defn parse-length-with-regex
+  ([column-type regex] (parse-length-with-regex column-type regex 1))
+  ([column-type regex length-group]
+    (let [matcher (re-matcher regex column-type)]
+      (when (.matches matcher)
+        (Integer/parseInt (nth (re-groups matcher) length-group))))))
 
 (defn parse-date-length [column-type]
-  (let [matcher (re-matcher date-regex column-type)]
-    (when (.matches matcher)
-      (Integer/parseInt (second (re-groups matcher))))))
+  (parse-length-with-regex column-type date-regex))
+
+(defn parse-date-time-length [column-type]
+  (parse-length-with-regex column-type date-time-regex))
+
+(defn parse-integer-length [column-type]
+  (parse-length-with-regex column-type integer-regex))
+
+(defn parse-string-length [column-type]
+  (parse-length-with-regex column-type varchar-regex))
+
+(defn parse-text-length [column-type]
+  (parse-length-with-regex column-type text-regex))
+
+(defn parse-time-length [column-type]
+  (parse-length-with-regex column-type time-regex))
 
 (defn parse-length [column-type]
   (when column-type
     (cond
+      (is-date-column column-type) (parse-date-length column-type)
+      (is-date-time-column column-type) (parse-date-time-length column-type)
+      (is-integer-column column-type) (parse-integer-length column-type)
       (is-string-column column-type) (parse-string-length column-type)
-      (is-date-column column-type) (parse-date-length column-type))))
+      (is-text-column column-type) (parse-text-length column-type)
+      (is-time-column column-type) (parse-time-length column-type))))
 
-(defn add-primary-key [column-map column-desc]
+(defn add-primary-key [column-desc column-map]
   (if (= (:key column-desc) "PRI")
     (assoc column-map :primary-key true)
     column-map))
 
-(defn add-not-null [column-map column-desc]
+(defn add-not-null [column-desc column-map]
   (if (= (:null column-desc) "NO")
     (assoc column-map :not-null true)
     column-map))
 
-(defn add-length [column-map column-desc]
+(defn add-length [column-desc column-map]
   (if-let [length (parse-length (:type column-desc))]
     (assoc column-map :length length)
     column-map))
 
-(defn add-default [column-map column-desc]
+(defn add-default [column-desc column-map]
   (if-let [default (:default column-desc)]
     (assoc column-map :default default)
     column-map))
 
+(defn parse-precision [column-type]
+  (when column-type
+    (let [matcher (re-matcher decimal-regex column-type)]
+      (when (.matches matcher)
+        (Integer/parseInt (second (re-groups matcher)))))))
+
+(defn add-precision [column-desc column-map]
+  (if-let [precision (parse-precision (:type column-desc))]
+    (assoc column-map :precision precision)
+    column-map))
+
+(defn parse-scale [column-type]
+  (when column-type
+    (let [matcher (re-matcher decimal-regex column-type)]
+      (when (and (.matches matcher) (> (.groupCount matcher) 2))
+        (let [scale-str (.group matcher 3)]
+          (when (not-empty scale-str)
+            (Integer/parseInt scale-str)))))))
+
+(defn add-scale [column-desc column-map]
+  (if-let [scale (parse-scale (:type column-desc))]
+    (assoc column-map :scale scale)
+    column-map))
+
 (defn parse-column [column-desc]
   ;(logging/info (str "column-desc: " column-desc))
-  (add-default
-    (add-length
-      (add-not-null
-        (add-primary-key
-          { :name (column-name-key (:field column-desc))
-            :type (parse-type (:type column-desc)) }
-          column-desc)
-        column-desc)
-      column-desc)
-    column-desc))
+  (add-scale column-desc
+    (add-precision column-desc
+      (add-default column-desc
+        (add-length column-desc
+          (add-not-null column-desc
+            (add-primary-key column-desc
+              { :name (column-name-key (:field column-desc))
+                :type (parse-type (:type column-desc)) })))))))
 
 (deftype H2Flavor [dbname db-dir]
   drift-db-protocol/Flavor

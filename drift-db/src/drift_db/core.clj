@@ -84,9 +84,7 @@
   "Returns a new spec describing the id for a table. Use this method with the create-table method."
   ([] (id :id))
   ([column]
-    (assoc
-      (integer column { :not-null true :primary-key true })
-      :type :id)))
+    (assoc (integer column { :not-null true :primary-key true }) :type :id)))
 
 (defn belongs-to
   "Returns a new spec describing a text with the given column and spec mods map. Use this method with the create-table
