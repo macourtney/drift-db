@@ -1,76 +1,62 @@
-(ns drift-db-h2.flavor
+(ns drift-db-mysql.flavor
   (:require [clojure.java.jdbc :as sql]
             [clojure.tools.loading-utils :as conjure-loading-utils]
             [clojure.tools.logging :as logging]
-            [clojure.tools.string-utils :as conjure-string-utils]
             [clojure.string :as clojure-str]
             [drift-db.protocol :as drift-db-protocol])
-  (:import
-    [java.text SimpleDateFormat]
-    [org.h2.jdbcx JdbcDataSource]
-    [org.h2.jdbc JdbcClob]))
+  (:import [com.mysql.jdbc.jdbc2.optional MysqlDataSource]
+           [java.text SimpleDateFormat]))
 
 (defn
-#^{:doc "Returns an h2 datasource for a ."}
+#^{:doc "Returns an mysql datasource for a ."}
   create-datasource
     ([connection-url] (create-datasource connection-url nil nil))
     ([connection-url username password]
-      (let [h2-datasource (new JdbcDataSource)]
-        (. h2-datasource setURL connection-url)
-        (when (and username password)
-          (. h2-datasource setUser username)
-          (. h2-datasource setPassword password))
-        h2-datasource)))
-
-(defn-
-#^{ :doc "Cleans up the given value, loading any clobs into memory." }
-  clean-value [value]
-  (if (and value (instance? JdbcClob value))
-    (.getSubString value 1 (.length value))
-    value))
-
-(defn-
-#^{ :doc "Cleans up the given row, loading any clobs into memory." }
-  clean-row [row]
-  (reduce 
-    (fn [new-map pair] 
-        (assoc new-map (first pair) (clean-value (second pair))))
-    {} 
-    row))
+      (let [mysql-datasource (new MysqlDataSource)]
+      (. mysql-datasource setURL connection-url)
+      (if (and username password)
+        (. mysql-datasource setUser username)
+        (. mysql-datasource setPassword password))
+      mysql-datasource)))
 
 (defn
-#^{:doc "Returns the given key or string as valid table name. Basically turns any keyword into a string, and replaces
-dashes with underscores."}
+#^{:doc "Returns the given string surrounded by backquotes."}
+  backquote [s]
+  (str "`" s "`"))
+  
+(defn
+#^{:doc "Returns the given key or string as valid table name. Basically turns 
+any keyword into a string, and replaces dashes with underscores."}
   table-name [table]
-  (conjure-loading-utils/dashes-to-underscores (conjure-string-utils/str-keyword table)))
+  (backquote (conjure-loading-utils/dashes-to-underscores (name table))))
+
+(defn
+#^{:doc "Returns the not null spec vector from the given mods map."}
+  not-null-mod [mods]
+  (if (:not-null mods) ["NOT NULL"] []))
+  
+(defn
+#^{:doc "Returns the primary key spec vector from the given mods map."}
+  primary-key-mod [mods]
+  (if (:primary-key mods) ["PRIMARY KEY"] []))
+  
+(defn
+#^{:doc "Returns the primary key spec vector from the given mods map."}
+  auto-increment-mod [mods]
+  (if (:auto-increment mods) ["AUTO_INCREMENT"] []))
 
 (defn
 #^{:doc "Returns the given key or string as valid column name. Basically turns 
 any keyword into a string, and replaces dashes with underscores."}
   column-name [column]
-  (conjure-loading-utils/dashes-to-underscores (conjure-string-utils/str-keyword column)))
+  (backquote (conjure-loading-utils/dashes-to-underscores (name column))))
 
 (defn
-#^{ :doc "Returns the given valid column name as a keyword. Basically turns 
-any string into a keyword, and replaces underscores with dashes." }
+#^{:doc "Returns the given valid column name as a keyword. Basically turns 
+any string into a keyword, and replaces underscores with dashes."}
   column-name-key [column-name]
   (when column-name
     (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase column-name)))))
-
-(defn
-#^{:doc "Returns the primary key spec vector from the given mods map."}
-  auto-increment-mod [column-spec]
-  (if (:auto-increment column-spec) ["AUTO_INCREMENT"] []))
-
-(defn
-#^{:doc "Returns the not null spec vector from the given mods map."}
-  not-null-mod [column-spec]
-  (if (:not-null column-spec) ["NOT NULL"] []))
-
-(defn
-#^{:doc "Returns the primary key spec vector from the given mods map."}
-  primary-key-mod [column-spec]
-  (if (:primary-key column-spec) ["PRIMARY KEY"] []))
 
 (defmulti column-spec-vec (fn [column-spec] (:type column-spec)))
 
@@ -115,13 +101,13 @@ any string into a keyword, and replaces underscores with dashes." }
 (defn spec-str [spec]
   (clojure-str/join " " (spec-vec spec)))
 
-(def date-regex #"DATE\((\d+)\)")
-(def date-time-regex #"TIMESTAMP\((\d+)\)")
-(def integer-regex #"INTEGER\((\d+)\)")
-(def decimal-regex #"DECIMAL\((\d+)(,\s*(\d+))?\)")
-(def varchar-regex #"VARCHAR\((\d+)\)")
-(def text-regex #"CLOB\((\d+)\)")
-(def time-regex #"TIME\((\d+)\)")
+(def date-regex #"date")
+(def date-time-regex #"datetime")
+(def integer-regex #"int\((\d+)\)")
+(def decimal-regex #"decimal\((\d+)(,\s*(\d+))?\)")
+(def varchar-regex #"varchar\((\d+)\)")
+(def text-regex #"text")
+(def time-regex #"time")
 
 (defn is-date-column [column-type]
   (re-matches date-regex column-type))
@@ -162,33 +148,17 @@ any string into a keyword, and replaces underscores with dashes." }
       (when (.matches matcher)
         (Integer/parseInt (nth (re-groups matcher) length-group))))))
 
-(defn parse-date-length [column-type]
-  (parse-length-with-regex column-type date-regex))
-
-(defn parse-date-time-length [column-type]
-  (parse-length-with-regex column-type date-time-regex))
-
 (defn parse-integer-length [column-type]
   (parse-length-with-regex column-type integer-regex))
 
 (defn parse-string-length [column-type]
   (parse-length-with-regex column-type varchar-regex))
 
-(defn parse-text-length [column-type]
-  (parse-length-with-regex column-type text-regex))
-
-(defn parse-time-length [column-type]
-  (parse-length-with-regex column-type time-regex))
-
 (defn parse-length [column-type]
   (when column-type
     (cond
-      (is-date-column column-type) (parse-date-length column-type)
-      (is-date-time-column column-type) (parse-date-time-length column-type)
       (is-integer-column column-type) (parse-integer-length column-type)
-      (is-string-column column-type) (parse-string-length column-type)
-      (is-text-column column-type) (parse-text-length column-type)
-      (is-time-column column-type) (parse-time-length column-type))))
+      (is-string-column column-type) (parse-string-length column-type))))
 
 (defn add-primary-key [column-desc column-map]
   (if (= (:key column-desc) "PRI")
@@ -245,41 +215,33 @@ any string into a keyword, and replaces underscores with dashes." }
               { :name (column-name-key (:field column-desc))
                 :type (parse-type (:type column-desc)) })))))))
 
-(defn convert-record [record]
-  (reduce #(assoc %1 (column-name (first %2)) (second %2)) {} record))
-
-(defn convert-records [records]
-  (map convert-record records))
-
-(deftype H2Flavor [dbname db-dir]
+(deftype MysqlFlavor [username password dbname host]
   drift-db-protocol/Flavor
   (db-map [flavor]
-    (let [subprotocol "h2"
-          
-          db-directory (or db-dir "db/data/")
+    (let [subprotocol "mysql"
 
-          subname (str db-directory dbname)]
-  
+          subname (str "//" host "/" dbname)]
+
       { :flavor flavor
 
         ;; The name of the JDBC driver to use.
-        :classname "org.h2.Driver"
-        
-        ;; The database type.
-        :subprotocol subprotocol
-  
-        ;; The database path.
-        :subname subname
-  
+        :classname "com.mysql.jdbc.Driver"
+
         ;; A datasource for the database.
-        :datasource (create-datasource (format "jdbc:%s:%s" subprotocol subname)) }))
+        :datasource (create-datasource (format "jdbc:%s:%s" subprotocol subname))
+        
+        ;; The user name to use when connecting to the database.
+        :username username
+
+        ;; The password to use when connecting to the database.
+        :password password }))
 
   (execute-query [flavor sql-vector]
     (do
       (logging/debug (str "Executing query: " sql-vector))
       (sql/with-connection (drift-db-protocol/db-map flavor)
         (sql/with-query-results rows sql-vector
-          (doall (map clean-row rows))))))
+          (doall rows)))))
 
   (execute-commands [flavor sql-strings]
     (do
@@ -291,29 +253,29 @@ any string into a keyword, and replaces underscores with dashes." }
     (do
       (logging/debug (str "Update table: " table " where: " where-params " record: " record))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/update-values (table-name table) where-params (convert-record record)))))
+        (sql/update-values (table-name table) where-params record))))
 
   (insert-into [flavor table records]
     (do
       (logging/debug (str "insert into: " table " records: " records))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/insert-records (table-name table) (convert-records records)))))
+        (apply sql/insert-records (table-name table) records))))
 
   (table-exists? [flavor table]
     (try
       (let [results (drift-db-protocol/execute-query flavor [(str "SELECT * FROM " (table-name table) " LIMIT 1")])]
         true)
       (catch Exception e false)))
-
+  
   (sql-find [flavor select-map]
     (let [table (:table select-map)
-          select-clause (or (:select select-map) "*")
-          where-clause (:where select-map)
-          limit-clause (:limit select-map)]
-      (drift-db-protocol/execute-query flavor 
-        [(str "SELECT " select-clause " FROM " (table-name table)
-             (when where-clause (str " WHERE " where-clause)) 
-             (when limit-clause (str " LIMIT " limit-clause)))])))
+        select-clause (or (:select select-map) "*")
+        where-clause (:where select-map)
+        limit-clause (:limit select-map)]
+    (drift-db-protocol/execute-query flavor
+      [(str "SELECT " select-clause " FROM " (table-name table)
+           (when where-clause (str " WHERE " where-clause)) 
+           (when limit-clause (str " LIMIT " limit-clause)))])))
 
   (create-table [flavor table specs]
     (do
@@ -323,24 +285,23 @@ any string into a keyword, and replaces underscores with dashes." }
 
   (drop-table [flavor table]
     (do
-      (logging/debug (str "Drop table: " (table-name table)))
-      (when (some #(= (.toUpperCase (table-name table)) %) (map :table_name (drift-db-protocol/execute-query flavor ["SHOW TABLES"])))
-        (sql/with-connection (drift-db-protocol/db-map flavor)
-          (sql/drop-table (table-name table))))))
+      (logging/debug (str "Drop table: " table))
+      (sql/with-connection (drift-db-protocol/db-map flavor)
+        (sql/drop-table (table-name table)))))
 
   (add-column [flavor table spec]
     (drift-db-protocol/execute-commands flavor
-      [(str "ALTER TABLE " (table-name table) " ADD IF NOT EXISTS " (spec-str spec))]))
-
+      [(str "ALTER TABLE " (table-name table) " ADD " (spec-str spec))]))
+  
   (drop-column [flavor table column]
     (drift-db-protocol/execute-commands flavor
-      [(str "ALTER TABLE " (table-name table) " DROP COLUMN IF EXISTS " (column-name column))]))
+      [(str "ALTER TABLE " (table-name table) " DROP COLUMN " (column-name column))]))
 
   (describe-table [flavor table]
     (do
       (logging/debug (str "Describe table: " table))
       { :name table
-        :columns (map parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))])) }))
+        :columns (map parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))]))}))
 
   (delete [flavor table where]
     (do
@@ -357,7 +318,7 @@ any string into a keyword, and replaces underscores with dashes." }
   (format-time [flavor date]
     (. (new SimpleDateFormat "HH:mm:ss") format date)))
 
-(defn h2-flavor
-  ([dbname] (h2-flavor dbname nil))
-  ([dbname db-dir]
-    (H2Flavor. dbname db-dir)))
+(defn mysql-flavor
+  ([username password dbname] (mysql-flavor username password dbname "localhost"))
+  ([username password dbname host]
+    (MysqlFlavor. username password dbname host)))
