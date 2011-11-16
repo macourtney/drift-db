@@ -61,11 +61,13 @@
             test-row { :name test-row-name }
             test-row2 { :name test-row-name2 }]
         (drift-db/insert-into :test test-row)
-        (is (= (first (drift-db/execute-query ["SELECT * FROM TEST WHERE NAME = ?" test-row-name])) test-row))
+        (is (= (first (drift-db/sql-find { :table :test :where [(str "NAME = '" test-row-name "'")] :limit 1 })) test-row))
         (drift-db/update :test ["NAME = ?" test-row-name] { :name test-row-name2 })
-        (is (= (first (drift-db/execute-query ["SELECT * FROM TEST WHERE NAME = ?" test-row-name2])) test-row2))
-        (drift-db/delete :test ["NAME = ?" test-row-name2])
-        (is (nil? (first (drift-db/execute-query ["SELECT * FROM TEST WHERE NAME = ?" test-row-name2])))))
+        (is (= (first (drift-db/sql-find { :table :test :where ["NAME = ?" test-row-name2] })) test-row2))
+        (drift-db/update :test { :name test-row-name2 } { :name test-row-name })
+        (is (= (first (drift-db/sql-find { :table :test :where ["NAME = ?" test-row-name] })) test-row))
+        (drift-db/delete :test ["NAME = ?" test-row-name])
+        (is (nil? (first (drift-db/sql-find { :table :test :where { :name test-row-name } })))))
       (finally 
         (drift-db/drop-table :test)
         (is (not (drift-db/table-exists? :test)))))))

@@ -215,6 +215,17 @@ any string into a keyword, and replaces underscores with dashes."}
               { :name (column-name-key (:field column-desc))
                 :type (parse-type (:type column-desc)) })))))))
 
+(defn pair-to-equals [pair]
+  (str "(" (column-name (first pair)) " = ?)"))
+
+(defn record-to-and-call [record]
+  (cons (clojure-str/join " and " (map pair-to-equals record)) (vals record)))
+
+(defn convert-where [where-or-record]
+  (if (map? where-or-record)
+    (record-to-and-call where-or-record)
+    where-or-record))
+
 (deftype MysqlFlavor [username password dbname host]
   drift-db-protocol/Flavor
   (db-map [flavor]
@@ -249,11 +260,11 @@ any string into a keyword, and replaces underscores with dashes."}
       (sql/with-connection (drift-db-protocol/db-map flavor)
         (apply sql/do-commands sql-strings))))
 
-  (update [flavor table where-params record]
+  (update [flavor table where-or-record record]
     (do
-      (logging/debug (str "Update table: " table " where: " where-params " record: " record))
+      (logging/debug (str "Update table: " table " where: " where-or-record " record: " record))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/update-values (table-name table) where-params record))))
+        (sql/update-values (table-name table) (convert-where where-or-record) record))))
 
   (insert-into [flavor table records]
     (do
@@ -270,12 +281,13 @@ any string into a keyword, and replaces underscores with dashes."}
   (sql-find [flavor select-map]
     (let [table (:table select-map)
         select-clause (or (:select select-map) "*")
-        where-clause (:where select-map)
-        limit-clause (:limit select-map)]
+        where-clause (convert-where (:where select-map))
+        limit-clause (:limit select-map)
+        select-str (str "SELECT " select-clause " FROM " (table-name table)
+                     (when where-clause (str " WHERE " (first where-clause))) 
+                     (when limit-clause (str " LIMIT " limit-clause)))]
     (drift-db-protocol/execute-query flavor
-      [(str "SELECT " select-clause " FROM " (table-name table)
-           (when where-clause (str " WHERE " where-clause)) 
-           (when limit-clause (str " LIMIT " limit-clause)))])))
+      (vec (concat [select-str] (when where-clause (rest where-clause)))))))
 
   (create-table [flavor table specs]
     (do
@@ -303,11 +315,11 @@ any string into a keyword, and replaces underscores with dashes."}
       { :name table
         :columns (map parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))]))}))
 
-  (delete [flavor table where]
+  (delete [flavor table where-or-record]
     (do
-      (logging/debug (str "Delete from " table " where " where))
+      (logging/debug (str "Delete from " table " where " where-or-record))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/delete-rows (table-name table) where))))
+        (sql/delete-rows (table-name table) (convert-where where-or-record)))))
 
   (format-date [flavor date]
     (. (new SimpleDateFormat "yyyy-MM-dd") format date))

@@ -11,7 +11,7 @@
 
   (execute-commands [flavor sql-strings] "Executes an sql string without returning results.")
 
-  (update [flavor table where-params record]
+  (update [flavor table where-or-record record]
     "Runs an update given the table, where-params and a record.
 
       table - The name of the table to update.
@@ -31,7 +31,7 @@
 
         table - the table to run the select statement on
         select - the columns to return
-        where - the conditions")
+        where - the conditions as a string, vector, or prototype record")
 
   (create-table [flavor table specs]
     "Creates a new table with the given name and with columns based on the given specs.")
@@ -44,7 +44,7 @@
 
   (describe-table [flavor table] "Shows the columns of the given table.")
 
-  (delete [flavor table where] "Deletes rows from the table with the given name.")
+  (delete [flavor table where-or-record] "Deletes rows from the table which satisfies the given where or prototype record.")
 
   (format-date [flavor date] "Returns the string value of the given date for use in the database.")
 
