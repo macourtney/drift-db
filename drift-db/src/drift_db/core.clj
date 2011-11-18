@@ -6,6 +6,9 @@
 (defn init-flavor [flavor]
   (swap! conjure-flavor (fn [_] flavor)))
 
+(defn initialized? []
+  (not (nil? @conjure-flavor)))
+
 (defn execute-query [sql-vector]
   (flavor-protocol/execute-query @conjure-flavor sql-vector))
 

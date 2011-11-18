@@ -1,5 +1,6 @@
 (ns drift-db.migrate
-  (:require [drift-db.core :as core]))
+  (:require [clojure.tools.logging :as logging]
+            [drift-db.core :as core]))
 
 (def schema-info-table "schema_info")
 (def version-column :version)
