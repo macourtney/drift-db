@@ -24,6 +24,10 @@
 (defn describe-table [table]
   (flavor-protocol/describe-table @conjure-flavor table))
 
+(defn column-exists? [table column]
+  (some #(= (:name %) column)
+    (:columns (describe-table table)) (keyword column)))
+
 (defn drop-table [table]
   (flavor-protocol/drop-table @conjure-flavor table))
 
