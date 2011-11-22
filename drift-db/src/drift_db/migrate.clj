@@ -22,7 +22,7 @@
   version-table-does-not-exist []
   (logging/info (str schema-info-table " does not exist. Creating table..."))
   (core/create-table schema-info-table 
-    (core/integer version-column { :not-null true }))
+    (core/integer version-column { :length 19 :not-null true }))
   (version-table-is-empty))
 
 (defn 

@@ -106,7 +106,7 @@
       { :spec-type :column
         :type :integer
         :name column }
-      (select-keys mods [:not-null :primary-key]))))
+      (select-keys mods [:length :not-null :primary-key]))))
 
 (defn id
   "Returns a new spec describing the id for a table. Use this method with the create-table method."

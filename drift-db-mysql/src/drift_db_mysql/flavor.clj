@@ -67,8 +67,11 @@ any string into a keyword, and replaces underscores with dashes."}
   [(column-name (:name column-spec)) "DATETIME"])
 
 (defmethod column-spec-vec :integer [column-spec]
-  (concat [(column-name (:name column-spec)) "INT"] (not-null-mod column-spec) (auto-increment-mod column-spec)
-    (primary-key-mod column-spec)))
+  (let [int-length (get column-spec :length 11)
+        int-type (if (> int-length 11) "BIGINT" "INT")
+        integer (str int-type "(" int-length ")")]
+    (concat [(column-name (:name column-spec)) integer] (not-null-mod column-spec)
+      (auto-increment-mod column-spec) (primary-key-mod column-spec))))
 
 (defmethod column-spec-vec :id [column-spec]
   (column-spec-vec (assoc column-spec :type :integer)))
