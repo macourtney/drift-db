@@ -8,13 +8,6 @@
 (def username "drift-db")
 (def password "drift-db-pass")
 
-(defn is-column? [column column-name]
-  (when (= (:name column) column-name)
-    column))
-
-(defn find-column [table-description column-name]
-  (some #(is-column? %1 column-name) (:columns table-description)))
-
 (deftest create-flavor
   (let [flavor (mysql-flavor username password dbname)]
     (try
@@ -38,12 +31,20 @@
                         { :scale 6 :precision 20 :name :bar :type :decimal }
                         { :name :description :type :text }
                         { :name :deleted-at :type :time }] }))
+      (is (drift-db/column-exists? :test :foo))
+      (is (drift-db/column-exists? :test "bar"))
       (drift-db/add-column :test
         (drift-db/string :added))
-      (is (= (find-column (drift-db/describe-table :test) :added)
+      (is (= (drift-db/find-column :test :added)
             { :length 255, :name :added, :type :string }))
       (drift-db/drop-column :test :added)
-      (is (nil? (find-column (drift-db/describe-table :test) :added)))
+      (is (not (drift-db/column-exists? :test :added)))
+
+      (drift-db/drop-column-if-exists :test :added)
+
+      (drift-db/drop-column-if-exists :test :bar)
+      (is (not (drift-db/column-exists? :test :bar)))
+
       (finally 
         (drift-db/drop-table :test)
         (is (not (drift-db/table-exists? :test)))))))

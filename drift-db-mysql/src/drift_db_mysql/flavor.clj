@@ -280,14 +280,14 @@ any string into a keyword, and replaces underscores with dashes."}
   
   (sql-find [flavor select-map]
     (let [table (:table select-map)
-        select-clause (or (:select select-map) "*")
-        where-clause (convert-where (:where select-map))
-        limit-clause (:limit select-map)
-        select-str (str "SELECT " select-clause " FROM " (table-name table)
-                     (when where-clause (str " WHERE " (first where-clause))) 
-                     (when limit-clause (str " LIMIT " limit-clause)))]
-    (drift-db-protocol/execute-query flavor
-      (vec (concat [select-str] (when where-clause (rest where-clause)))))))
+          select-clause (or (:select select-map) "*")
+          where-clause (convert-where (:where select-map))
+          limit-clause (:limit select-map)
+          select-str (str "SELECT " select-clause " FROM " (table-name table)
+                       (when where-clause (str " WHERE " (first where-clause))) 
+                       (when limit-clause (str " LIMIT " limit-clause)))]
+      (drift-db-protocol/execute-query flavor
+        (vec (concat [select-str] (when where-clause (rest where-clause)))))))
 
   (create-table [flavor table specs]
     (do

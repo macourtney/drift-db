@@ -46,3 +46,35 @@
   (assert-integer-spec (integer :test { :primary-key true }) :test nil true)
   (assert-integer-spec (integer :test { :not-null true :primary-key true }) :test true true)
   (assert-integer-spec (integer :test { :fail :fail }) :test))
+
+(deftest test-column-name
+  (is (= (column-name :foo) :foo))
+  (is (= (column-name "foo") :foo))
+  (is (= (column-name { :name :foo }) :foo))
+  (is (= (column-name { :name "foo" }) :foo)))
+
+(deftest test-column-name=
+  (is (column-name= :foo :foo))
+  (is (not (column-name= :foo :bar)))
+  (is (column-name= :foo "foo"))
+  (is (not (column-name= :foo "bar")))
+  (is (column-name= :foo { :name :foo }))
+  (is (not (column-name= :foo { :name :bar })))
+  (is (column-name= :foo { :name "foo" }))
+  (is (not (column-name= :foo { :name "bar" }))))
+
+(deftest test-columns
+  (let [test-columns [{ :default "" :length 20 :not-null true :primary-key true :name :name :type :string }
+                      { :name :created-at :type :date }
+                      { :name :edited-at :type :date-time }]]
+    (is (= (columns { :name :test :columns test-columns }) test-columns))))
+
+(deftest test-find-column
+  (let [test-column-name :created-at
+        test-column { :name test-column-name :type :date }
+        test-columns [{ :default "" :length 20 :not-null true :primary-key true :name :name :type :string }
+                      test-column
+                      { :name :edited-at :type :date-time }]
+        test-table { :name :test :columns test-columns }]
+    (is (= (find-column test-table test-column-name) test-column))
+    (is (= (find-column test-table test-column) test-column))))

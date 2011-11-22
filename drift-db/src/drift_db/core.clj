@@ -1,5 +1,6 @@
 (ns drift-db.core
-  (:require [drift-db.protocol :as flavor-protocol]))
+  (:require [clojure.tools.logging :as logging]
+            [drift-db.protocol :as flavor-protocol]))
 
 (def conjure-flavor (atom nil))
 
@@ -24,9 +25,25 @@
 (defn describe-table [table]
   (flavor-protocol/describe-table @conjure-flavor table))
 
+(defn column-name [column]
+  (keyword
+    (if (map? column)
+      (:name column)
+      column)))
+
+(defn column-name= [column1 column2]
+  (= (column-name column1) (column-name column2)))
+
+(defn columns [table]
+  (if (map? table)
+    (:columns table)
+    (recur (describe-table table))))
+
+(defn find-column [table column]
+  (some #(when (column-name= column %1) %1) (columns table)))
+
 (defn column-exists? [table column]
-  (some #(= (:name %) column)
-    (:columns (describe-table table)) (keyword column)))
+  (find-column table column))
 
 (defn drop-table [table]
   (flavor-protocol/drop-table @conjure-flavor table))
@@ -36,6 +53,10 @@
 
 (defn drop-column [table column]
   (flavor-protocol/drop-column @conjure-flavor table column))
+
+(defn drop-column-if-exists [table column]
+  (when (column-exists? table column)
+    (drop-column table column)))
 
 (defn insert-into [table & records]
   (flavor-protocol/insert-into @conjure-flavor table records))
