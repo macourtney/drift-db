@@ -52,6 +52,16 @@ Example:
 
 The above example drops the table with the name text.
 
+### Testing for the existence of a table.
+
+To test for the existence of a table, use the `table-exists?` function:
+
+Example:
+
+```clojure
+  (table-exists? :test)
+```
+
 ### Describing a table.
 
 You can describe a table using the `describe-table` function.
@@ -63,6 +73,46 @@ Example:
 ```
 
 The above example returns the description for the "test" table. The description is a map with two keys, the first is the :name which maps to the name of the table, the second is :columns which maps to a list of columns in the database. Each column description is similar in format to the spec map created by the column spec functions.
+
+You can get just the columns of a table using the `columns` function.
+
+Example:
+
+```clojure
+  (columns :test)
+```
+
+The above example returns the columns from the table "test".
+
+You can also pass the table map to `columns`.
+
+Example:
+
+```clojure
+  (columns (describe-table :test))
+```
+
+The above example returns exactly the same results as the example before it.
+
+You can find the specs for a column with `find-column`.
+
+Example:
+
+```clojure
+  (find-column :test :added)
+```
+
+The above example returns the specs for the column "added" on the table "test". You can also pass a table map for the table name, and a column spec for the column name.
+
+If you just want to know if a column exists in a table use `column-exists?`.
+
+Example:
+
+```clojure
+  (column-exists? :test :added)
+```
+
+The above example returns a true value if the column "added" is in the table "test".
 
 ### Adding and dropping a column
 
@@ -85,7 +135,17 @@ Example:
   (drop-column :test :added)
 ```
 
-The above example drops the "added" column from the "test" table.
+The above example drops the "added" column from the "test" table. If the "added" column does not exist on the "test" table, then the function will throw an exception.
+
+You can also drop a column only if it exists using `drop-column-if-exists`.
+
+Example:
+
+```clojure
+  (drop-column-if-exists :test :added)
+```
+
+The above example drops the "added" column from the "test" table if it exists. If it doesn't exist, the function does nothing.
 
 ### Create, Read, Update and Delete rows.
 
@@ -111,6 +171,22 @@ Example:
 
 The above example updates the row with the name "blah" and resets the name to "blah2".
 
+Update can also take a prototype record for the where clause.
+
+Example:
+
+```clojure
+  (update :test { :name "blah" } { :name "blah2" })
+```
+
+Or you can send a simple string as the where clause.
+
+Example:
+
+```clojure
+  (update :test "NAME = blah" { :name "blah2" })
+```
+
 To delete a row, use the `delete` function.
 
 Example:
@@ -120,6 +196,8 @@ Example:
 ```
 
 The above example deletes the row with the name "blah".
+
+Delete can also take a prototype record or string for the where clause just like update.
 
 There are a couple of ways to read rows out of the database. The two methods you can use are `sql-find` and `execute-query`.
 
@@ -132,6 +210,30 @@ Example:
 ```
 
 The above example selects all columns from the "test" table where the name is "blah" limiting the results to only one row.
+
+You can also pass a vector for the where clause.
+
+Example:
+
+```clojure
+  (sql-find { :table :test :select "*" :where ["NAME = ?" "blah"] :limit 1 })
+```
+
+Or, you can pass a prototype record for the where clause.
+
+Example:
+
+```clojure
+  (sql-find { :table :test :select "*" :where { :name "blah" } :limit 1 })
+```
+
+Select can be a string or a vector of column names.
+
+Example:
+
+```clojure
+  (sql-find { :table :test :select [:name :age] :where { :name "blah" } :limit 1 })
+```
 
 If you want to run an arbitrary sql query, you can use `execute-query`.
 

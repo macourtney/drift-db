@@ -15,7 +15,7 @@
     "Runs an sql select statement built from the given select-map. The valid keys are:
 
         table - the table to run the select statement on
-        select - the columns to return
+        select - the columns to return. Either a string, or a vector of column names.
         where - the conditions as a string, vector, or prototype record")
 
   (create-table [flavor table specs]
