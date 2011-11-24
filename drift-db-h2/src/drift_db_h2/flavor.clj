@@ -262,26 +262,30 @@ any string into a keyword, and replaces underscores with dashes." }
     (record-to-and-call where-or-record)
     where-or-record))
 
+(defn convert-select [select-or-list]
+  (if select-or-list
+    (if (string? select-or-list)
+      select-or-list
+      (clojure-str/join ", " (map name select-or-list)))
+    "*"))
+
 (deftype H2Flavor [dbname db-dir]
   drift-db-protocol/Flavor
   (db-map [flavor]
     (let [subprotocol "h2"
-          
           db-directory (or db-dir "db/data/")
-
           subname (str db-directory dbname)]
-  
       { :flavor flavor
 
         ;; The name of the JDBC driver to use.
         :classname "org.h2.Driver"
-        
+
         ;; The database type.
         :subprotocol subprotocol
-  
+
         ;; The database path.
         :subname subname
-  
+
         ;; A datasource for the database.
         :datasource (create-datasource (format "jdbc:%s:%s" subprotocol subname)) }))
 
@@ -298,27 +302,9 @@ any string into a keyword, and replaces underscores with dashes." }
       (sql/with-connection (drift-db-protocol/db-map flavor)
         (apply sql/do-commands sql-strings))))
 
-  (update [flavor table where-or-record record]
-    (do
-      (logging/debug (str "Update table: " table " where: " where-or-record " record: " record))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/update-values (table-name table) (convert-where where-or-record) (convert-record record)))))
-
-  (insert-into [flavor table records]
-    (do
-      (logging/debug (str "insert into: " table " records: " records))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/insert-records (table-name table) (convert-records records)))))
-
-  (table-exists? [flavor table]
-    (try
-      (let [results (drift-db-protocol/execute-query flavor [(str "SELECT * FROM " (table-name table) " LIMIT 1")])]
-        true)
-      (catch Exception e false)))
-
   (sql-find [flavor select-map]
     (let [table (:table select-map)
-          select-clause (or (:select select-map) "*")
+          select-clause (convert-select (:select select-map))
           where-clause (convert-where (:where select-map))
           limit-clause (:limit select-map)
           select-str (str "SELECT " select-clause " FROM " (table-name table)
@@ -340,6 +326,18 @@ any string into a keyword, and replaces underscores with dashes." }
         (sql/with-connection (drift-db-protocol/db-map flavor)
           (sql/drop-table (table-name table))))))
 
+  (table-exists? [flavor table]
+    (try
+      (let [results (drift-db-protocol/execute-query flavor [(str "SELECT * FROM " (table-name table) " LIMIT 1")])]
+        true)
+      (catch Exception e false)))
+
+  (describe-table [flavor table]
+    (do
+      (logging/debug (str "Describe table: " table))
+      { :name table
+        :columns (map parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))])) }))
+
   (add-column [flavor table spec]
     (drift-db-protocol/execute-commands flavor
       [(str "ALTER TABLE " (table-name table) " ADD IF NOT EXISTS " (spec-str spec))]))
@@ -348,18 +346,6 @@ any string into a keyword, and replaces underscores with dashes." }
     (drift-db-protocol/execute-commands flavor
       [(str "ALTER TABLE " (table-name table) " DROP COLUMN IF EXISTS " (column-name column))]))
 
-  (describe-table [flavor table]
-    (do
-      (logging/debug (str "Describe table: " table))
-      { :name table
-        :columns (map parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))])) }))
-
-  (delete [flavor table where-or-record]
-    (do
-      (logging/debug (str "Delete from " table " where " where-or-record))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/delete-rows (table-name table) (convert-where where-or-record)))))
-
   (format-date [flavor date]
     (. (new SimpleDateFormat "yyyy-MM-dd") format date))
 
@@ -367,7 +353,25 @@ any string into a keyword, and replaces underscores with dashes." }
     (. (new SimpleDateFormat "yyyy-MM-dd HH:mm:ss") format date))
 
   (format-time [flavor date]
-    (. (new SimpleDateFormat "HH:mm:ss") format date)))
+    (. (new SimpleDateFormat "HH:mm:ss") format date))
+
+  (insert-into [flavor table records]
+    (do
+      (logging/debug (str "insert into: " table " records: " records))
+      (sql/with-connection (drift-db-protocol/db-map flavor)
+        (apply sql/insert-records (table-name table) (convert-records records)))))
+
+  (delete [flavor table where-or-record]
+    (do
+      (logging/debug (str "Delete from " table " where " where-or-record))
+      (sql/with-connection (drift-db-protocol/db-map flavor)
+        (sql/delete-rows (table-name table) (convert-where where-or-record)))))
+
+  (update [flavor table where-or-record record]
+    (do
+      (logging/debug (str "Update table: " table " where: " where-or-record " record: " record))
+      (sql/with-connection (drift-db-protocol/db-map flavor)
+        (sql/update-values (table-name table) (convert-where where-or-record) (convert-record record))))))
 
 (defn h2-flavor
   ([dbname] (h2-flavor dbname nil))

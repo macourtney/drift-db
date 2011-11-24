@@ -2,73 +2,119 @@
   (:require [clojure.tools.logging :as logging]
             [drift-db.protocol :as flavor-protocol]))
 
-(def conjure-flavor (atom nil))
+(def drift-db-flavor (atom nil))
 
-(defn init-flavor [flavor]
-  (swap! conjure-flavor (fn [_] flavor)))
+(defn init-flavor
+  "Sets the flavor used by Drift-db."
+  [flavor]
+  (swap! drift-db-flavor (fn [_] flavor)))
 
-(defn initialized? []
-  (not (nil? @conjure-flavor)))
+(defn initialized?
+  "Returns true if and only if Drift-db has been initialized with a flavor."
+  []
+  (not (nil? @drift-db-flavor)))
 
-(defn execute-query [sql-vector]
-  (flavor-protocol/execute-query @conjure-flavor sql-vector))
+(defn execute-query
+  "Runs the given sql query vector using the currently set protocol. The sql-vector is in the form [sql & params],
+  where sql is the sql statment string and params is a list of values which will be passed to the sql statement string
+  if it is a prepared statement. This function returns the results as a list of maps."
+  [sql-vector]
+  (flavor-protocol/execute-query @drift-db-flavor sql-vector))
 
-(defn execute-commands [& sql-strings]
-  (flavor-protocol/execute-commands @conjure-flavor sql-strings))
+(defn execute-commands
+  "Runs the given set of sql strings and does not return results."
+  [& sql-strings]
+  (flavor-protocol/execute-commands @drift-db-flavor sql-strings))
 
-(defn create-table [table & specs]
-  (flavor-protocol/create-table @conjure-flavor table specs))
+(defn sql-find
+  "Runs an sql select statement built from the given select-map. The valid keys are:
 
-(defn delete [table where]
-  (flavor-protocol/delete @conjure-flavor table where))
+        table - the table to run the select statement on
+        select - the columns to return. Either a string, or a vector of column names.
+        where - the conditions as a string, vector, or prototype record"
+  [select-map]
+  (flavor-protocol/sql-find @drift-db-flavor select-map))
 
-(defn describe-table [table]
-  (flavor-protocol/describe-table @conjure-flavor table))
+;; Table Functions
 
-(defn column-name [column]
+(defn create-table
+  "Creates a table in the database with the name table, and the given specs. Each spec is a map describing some part of
+  the table. Right now, only column specs are supported."
+  [table & specs]
+  (flavor-protocol/create-table @drift-db-flavor table specs))
+
+(defn drop-table
+  "Drops the table with the given name from the database."
+  [table]
+  (flavor-protocol/drop-table @drift-db-flavor table))
+
+(defn table-exists?
+  "Returns true if the table with the given name exists."
+  [table]
+  (flavor-protocol/table-exists? @drift-db-flavor table))
+
+(defn describe-table
+  "Shows the columns of the given table. The result is a map which looks like:
+
+       { :name <table name>
+         :columns <columns specs> }
+    
+    Each column spec is exactly like the column spec passed into create table."
+  [table]
+  (flavor-protocol/describe-table @drift-db-flavor table))
+
+;; Column Functions
+
+(defn add-column
+  "Adds a column described by spec to the given table. Spec is a map describing a column."
+  [table spec]
+  (flavor-protocol/add-column @drift-db-flavor table spec))
+
+(defn drop-column
+  "Removes the given column from the given table."
+  [table column]
+  (flavor-protocol/drop-column @drift-db-flavor table column))
+
+(defn column-name
+  "Given a column name or column spec, this function returns the column name."
+  [column]
   (keyword
     (if (map? column)
       (:name column)
       column)))
 
-(defn column-name= [column1 column2]
+(defn column-name=
+  "Returns true if both of the given columns specs or names have equal column names."
+  [column1 column2]
   (= (column-name column1) (column-name column2)))
 
-(defn columns [table]
+(defn columns
+  "Returns the list of columns of the given table. Table can be either the name of the table, or the full table map."
+  [table]
   (if (map? table)
     (:columns table)
     (recur (describe-table table))))
 
-(defn find-column [table column]
+(defn find-column
+  "Returns the given column from the give table. Column can be either the column name or a column spec. Table can be
+  either the table name or the full table map."
+  [table column]
   (some #(when (column-name= column %1) %1) (columns table)))
 
-(defn column-exists? [table column]
+(defn column-exists?
+  "Returns true if the given column exists in the given table. This function only compares the column name. Table can be
+  either the name of the table or the table map. Column can be either the full column or just the column name. This
+  function is an alias for find-column."
+  [table column]
   (find-column table column))
 
-(defn drop-table [table]
-  (flavor-protocol/drop-table @conjure-flavor table))
-
-(defn add-column [table spec]
-  (flavor-protocol/add-column @conjure-flavor table spec))
-
-(defn drop-column [table column]
-  (flavor-protocol/drop-column @conjure-flavor table column))
-
-(defn drop-column-if-exists [table column]
+(defn drop-column-if-exists
+  "Drops the given column from the given table if and only if the column exists in the table."
+  [table column]
   (when (column-exists? table column)
     (drop-column table column)))
 
-(defn insert-into [table & records]
-  (flavor-protocol/insert-into @conjure-flavor table records))
-
-(defn sql-find [select-map]
-  (flavor-protocol/sql-find @conjure-flavor select-map))
-
-(defn table-exists? [table]
-  (flavor-protocol/table-exists? @conjure-flavor table))
-
-(defn update [table where-params record]
-  (flavor-protocol/update @conjure-flavor table where-params record))
+;; Spec Functions
 
 (defn date
   "Returns a new spec describing a date with the given column and spec mods map. Use this method with the create-table
@@ -178,11 +224,41 @@
       :type :time
       :name column }))
 
-(defn format-date [date]
-  (flavor-protocol/format-date @conjure-flavor date))
+(defn format-date
+  "Returns the string value of the given date for use in the database."
+  [date]
+  (flavor-protocol/format-date @drift-db-flavor date))
 
-(defn format-date-time [date]
-  (flavor-protocol/format-date-time @conjure-flavor date))
+(defn format-date-time
+  "Returns the string value of the given date as a date time for use in the database."
+  [date]
+  (flavor-protocol/format-date-time @drift-db-flavor date))
 
-(defn format-time [date]
-  (flavor-protocol/format-time @conjure-flavor date))
+(defn format-time
+  "Returns the string value of the given date as a time for use in the database."
+  [date]
+  (flavor-protocol/format-time @drift-db-flavor date))
+
+;; Row Functions
+
+(defn insert-into
+  "Inserts the given records into the given table.
+
+      table - The name of the table to update.
+      records - A map from strings or keywords (identifying columns) to updated values."
+  [table & records]
+  (flavor-protocol/insert-into @drift-db-flavor table records))
+
+(defn delete
+  "Deletes rows from the table which satisfies the given where or prototype record."
+  [table where-or-record]
+  (flavor-protocol/delete @drift-db-flavor table where))
+
+(defn update
+  "Runs an update given the table, where-params and a record.
+
+      table - The name of the table to update.
+      where-or-record - The where clause or a prototype record.
+      record - A map from strings or keywords (identifying columns) to updated values."
+  [table where-or-record record]
+  (flavor-protocol/update @drift-db-flavor table where-params record))
