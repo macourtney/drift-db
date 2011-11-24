@@ -2,6 +2,34 @@
 
 A database interface for use with drift.
 
+## Including drift-db in your Leiningen project
+
+To include drift-db in your Leiningen project, you first need to determine what database you will use. The two currently supported databases are H2 and Mysql. However, I hope more will be supported soon.
+
+To include the H2 drift-db library, use:
+
+```clojure
+  [org.drift-db/drift-db-h2 "x.x.x"]
+```
+
+Where "x.x.x" is the current version of drift-db-h2. You can get the current version of drift-db-h2 from: http://clojars.org/org.drift-db/drift-db-h2
+
+To include the Mysql drift-db library use:
+
+```clojure
+  [org.drift-db/drift-db-mysql "x.x.x"]
+```
+
+Where "x.x.x" is the current version of drift-db-mysql. You can get the current version of drift-db-mysql from: http://clojars.org/org.drift-db/drift-db-mysql
+
+If you want to create your own implementation of the drift-db protocol, you can use:
+
+```clojure
+  [org.drift-db/drift-db "x.x.x"]
+```
+
+You can get the current version of drift-db from: http://clojars.org/org.drift-db/drift-db
+
 ## Usage
 
 Drift db focuses on database tasks used in migrating databases. Creating, updating and deleting tables in a database are the primary tasks.
