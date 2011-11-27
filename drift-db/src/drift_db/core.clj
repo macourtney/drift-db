@@ -252,7 +252,7 @@
 (defn delete
   "Deletes rows from the table which satisfies the given where or prototype record."
   [table where-or-record]
-  (flavor-protocol/delete @drift-db-flavor table where))
+  (flavor-protocol/delete @drift-db-flavor table where-or-record))
 
 (defn update
   "Runs an update given the table, where-params and a record.
@@ -261,4 +261,4 @@
       where-or-record - The where clause or a prototype record.
       record - A map from strings or keywords (identifying columns) to updated values."
   [table where-or-record record]
-  (flavor-protocol/update @drift-db-flavor table where-params record))
+  (flavor-protocol/update @drift-db-flavor table where-or-record record))
