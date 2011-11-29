@@ -33,17 +33,17 @@ any keyword into a string, and replaces dashes with underscores."}
 (defn
 #^{:doc "Returns the not null spec vector from the given mods map."}
   not-null-mod [mods]
-  (if (:not-null mods) ["NOT NULL"] []))
+  (if (get mods :not-null) ["NOT NULL"] []))
   
 (defn
 #^{:doc "Returns the primary key spec vector from the given mods map."}
   primary-key-mod [mods]
-  (if (:primary-key mods) ["PRIMARY KEY"] []))
+  (if (get mods :primary-key) ["PRIMARY KEY"] []))
   
 (defn
 #^{:doc "Returns the primary key spec vector from the given mods map."}
   auto-increment-mod [mods]
-  (if (:auto-increment mods) ["AUTO_INCREMENT"] []))
+  (if (get mods :auto-increment) ["AUTO_INCREMENT"] []))
 
 (defn
 #^{:doc "Returns the given key or string as valid column name. Basically turns 
@@ -58,19 +58,24 @@ any string into a keyword, and replaces underscores with dashes."}
   (when column-name
     (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase column-name)))))
 
-(defmulti column-spec-vec (fn [column-spec] (:type column-spec)))
+(defn spec-column-name
+  "Returns the column name from the given columns spec"
+  [column-spec]
+  (column-name (get column-spec :name)))
+
+(defmulti column-spec-vec (fn [column-spec] (get column-spec :type)))
 
 (defmethod column-spec-vec :date [column-spec]
-  [(column-name (:name column-spec)) "DATE"])
+  [(spec-column-name column-spec) "DATE"])
 
 (defmethod column-spec-vec :date-time [column-spec]
-  [(column-name (:name column-spec)) "DATETIME"])
+  [(spec-column-name column-spec) "DATETIME"])
 
 (defmethod column-spec-vec :integer [column-spec]
   (let [int-length (get column-spec :length 11)
         int-type (if (> int-length 11) "BIGINT" "INT")
         integer (str int-type "(" int-length ")")]
-    (concat [(column-name (:name column-spec)) integer] (not-null-mod column-spec)
+    (concat [(spec-column-name column-spec) integer] (not-null-mod column-spec)
       (auto-increment-mod column-spec) (primary-key-mod column-spec))))
 
 (defmethod column-spec-vec :id [column-spec]
@@ -83,20 +88,20 @@ any string into a keyword, and replaces underscores with dashes."}
   (let [precision (get column-spec :precision 20)
         scale (get column-spec :scale 6)
         decimal (str "DECIMAL(" precision "," scale ")")]
-    (concat [(column-name (:name column-spec)) decimal] (not-null-mod column-spec) (primary-key-mod column-spec))))
+    (concat [(spec-column-name column-spec) decimal] (not-null-mod column-spec) (primary-key-mod column-spec))))
 
 (defmethod column-spec-vec :string [column-spec]
   (let [length (get column-spec :length 255)
         varchar (str "VARCHAR(" length ")")]
-    (concat [(column-name (:name column-spec)) varchar] (not-null-mod column-spec) (primary-key-mod column-spec))))
+    (concat [(spec-column-name column-spec) varchar] (not-null-mod column-spec) (primary-key-mod column-spec))))
 
 (defmethod column-spec-vec :text [column-spec]
-  [(column-name (:name column-spec)) "TEXT"])
+  [(spec-column-name column-spec) "TEXT"])
 
 (defmethod column-spec-vec :time [column-spec]
-  [(column-name (:name column-spec)) "TIME"])
+  [(spec-column-name column-spec) "TIME"])
 
-(defmulti spec-vec (fn [spec] (:spec-type spec)))
+(defmulti spec-vec (fn [spec] (get spec :spec-type)))
 
 (defmethod spec-vec :column [spec]
   (column-spec-vec spec))
@@ -164,22 +169,22 @@ any string into a keyword, and replaces underscores with dashes."}
       (is-string-column column-type) (parse-string-length column-type))))
 
 (defn add-primary-key [column-desc column-map]
-  (if (= (:key column-desc) "PRI")
+  (if (= (get column-desc :key) "PRI")
     (assoc column-map :primary-key true)
     column-map))
 
 (defn add-not-null [column-desc column-map]
-  (if (= (:null column-desc) "NO")
+  (if (= (get column-desc :null) "NO")
     (assoc column-map :not-null true)
     column-map))
 
 (defn add-length [column-desc column-map]
-  (if-let [length (parse-length (:type column-desc))]
+  (if-let [length (parse-length (get column-desc :type))]
     (assoc column-map :length length)
     column-map))
 
 (defn add-default [column-desc column-map]
-  (if-let [default (:default column-desc)]
+  (if-let [default (get column-desc :default)]
     (assoc column-map :default default)
     column-map))
 
@@ -190,7 +195,7 @@ any string into a keyword, and replaces underscores with dashes."}
         (Integer/parseInt (second (re-groups matcher)))))))
 
 (defn add-precision [column-desc column-map]
-  (if-let [precision (parse-precision (:type column-desc))]
+  (if-let [precision (parse-precision (get column-desc :type))]
     (assoc column-map :precision precision)
     column-map))
 
@@ -203,7 +208,7 @@ any string into a keyword, and replaces underscores with dashes."}
             (Integer/parseInt scale-str)))))))
 
 (defn add-scale [column-desc column-map]
-  (if-let [scale (parse-scale (:type column-desc))]
+  (if-let [scale (parse-scale (get column-desc :type))]
     (assoc column-map :scale scale)
     column-map))
 
@@ -214,8 +219,8 @@ any string into a keyword, and replaces underscores with dashes."}
         (add-length column-desc
           (add-not-null column-desc
             (add-primary-key column-desc
-              { :name (column-name-key (:field column-desc))
-                :type (parse-type (:type column-desc)) })))))))
+              { :name (column-name-key (get column-desc :field))
+                :type (parse-type (get column-desc :type)) })))))))
 
 (defn pair-to-equals [pair]
   (str "(" (column-name (first pair)) " = ?)"))
@@ -269,10 +274,10 @@ any string into a keyword, and replaces underscores with dashes."}
         (apply sql/do-commands sql-strings))))
 
   (sql-find [flavor select-map]
-    (let [table (:table select-map)
-          select-clause (convert-select (:select select-map))
-          where-clause (convert-where (:where select-map))
-          limit-clause (:limit select-map)
+    (let [table (get select-map :table)
+          select-clause (convert-select (get select-map :select))
+          where-clause (convert-where (get select-map :where))
+          limit-clause (get select-map :limit)
           select-str (str "SELECT " select-clause " FROM " (table-name table)
                        (when where-clause (str " WHERE " (first where-clause))) 
                        (when limit-clause (str " LIMIT " limit-clause)))]

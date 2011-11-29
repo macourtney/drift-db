@@ -80,7 +80,7 @@
   [column]
   (keyword
     (if (map? column)
-      (:name column)
+      (get column :name)
       column)))
 
 (defn column-name=
@@ -92,7 +92,7 @@
   "Returns the list of columns of the given table. Table can be either the name of the table, or the full table map."
   [table]
   (if (map? table)
-    (:columns table)
+    (get table :columns)
     (recur (describe-table table))))
 
 (defn find-column
