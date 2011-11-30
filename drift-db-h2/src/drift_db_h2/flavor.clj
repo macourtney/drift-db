@@ -212,7 +212,9 @@ any string into a keyword, and replaces underscores with dashes." }
 
 (defn add-default [column-desc column-map]
   (if-let [default (get column-desc :default)]
-    (assoc column-map :default default)
+    (if (= default "NULL")
+      column-map
+      (assoc column-map :default default))
     column-map))
 
 (defn parse-precision [column-type]
@@ -239,15 +241,23 @@ any string into a keyword, and replaces underscores with dashes." }
     (assoc column-map :scale scale)
     column-map))
 
+(defn add-auto-increment [column-desc column-map]
+  (if-let [default (get column-desc :default)]
+    (if (.startsWith default "(NEXT VALUE FOR PUBLIC")
+      (assoc column-map :auto-increment true)
+      column-map)
+    column-map))
+
 (defn parse-column [column-desc]
-  (add-scale column-desc
-    (add-precision column-desc
-      (add-default column-desc
-        (add-length column-desc
-          (add-not-null column-desc
-            (add-primary-key column-desc
-              { :name (column-name-key (get column-desc :field))
-                :type (parse-type (get column-desc :type)) })))))))
+  (add-auto-increment column-desc
+    (add-scale column-desc
+      (add-precision column-desc
+        (add-default column-desc
+          (add-length column-desc
+            (add-not-null column-desc
+              (add-primary-key column-desc
+                { :name (column-name-key (get column-desc :field))
+                  :type (parse-type (get column-desc :type)) }))))))))
 
 (defn convert-record [record]
   (reduce #(assoc %1 (column-name (first %2)) (second %2)) {} record))

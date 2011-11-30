@@ -53,6 +53,12 @@
   [table]
   (flavor-protocol/table-exists? @drift-db-flavor table))
 
+(defn drop-table-if-exists
+  "Drops the table with the given name from the database."
+  [table]
+  (when (table-exists? table)
+    (drop-table table)))
+
 (defn describe-table
   "Shows the columns of the given table. The result is a map which looks like:
 
@@ -144,7 +150,9 @@
 
    Curently supported values for mods:
        :not-null - If the value of this key resolves to true, then add this column will be forced to be not null.
-       :primary-key - If true, then make this column the primary key."
+       :primary-key - If true, then make this column the primary key.
+       :auto-increment - If true, then when no value is given, this integer will be automatically set to the next
+                         highest integer of all values already in the table."
   ([column]
     (integer column {}))
   ([column mods]
@@ -152,7 +160,7 @@
       { :spec-type :column
         :type :integer
         :name column }
-      (select-keys mods [:length :not-null :primary-key]))))
+      (select-keys mods [:length :not-null :primary-key :auto-increment]))))
 
 (defn id
   "Returns a new spec describing the id for a table. Use this method with the create-table method."

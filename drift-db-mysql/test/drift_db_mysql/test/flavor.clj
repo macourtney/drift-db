@@ -14,24 +14,28 @@
       (is flavor)
       (drift-db/init-flavor flavor)
       (drift-db/create-table :test
-        (drift-db/string :name { :length 20 :not-null true :primary-key true })
+        (drift-db/integer :id { :auto-increment true :primary-key true })
+        (drift-db/string :name { :length 20 :not-null true })
         (drift-db/date :created-at)
         (drift-db/date-time :edited-at)
-        (drift-db/integer :foo)
         (drift-db/decimal :bar)
         (drift-db/text :description)
         (drift-db/time-type :deleted-at))
       (is (drift-db/table-exists? :test))
-      (is (= (drift-db/describe-table :test)
-            { :name :test
-              :columns [{ :default "" :length 20 :not-null true :primary-key true :name :name :type :string }
-                        { :name :created-at :type :date }
-                        { :name :edited-at :type :date-time }
-                        { :length 11 :name :foo :type :integer }
-                        { :scale 6 :precision 20 :name :bar :type :decimal }
-                        { :name :description :type :text }
-                        { :name :deleted-at :type :time }] }))
-      (is (drift-db/column-exists? :test :foo))
+      (let [table-description (drift-db/describe-table :test)
+            expected-columns [{ :length 11 :not-null true :primary-key true :name :id :type :integer :auto-increment true }
+                              { :default "" :length 20 :not-null true :name :name :type :string }
+                              { :name :created-at :type :date }
+                              { :name :edited-at :type :date-time }
+                              { :scale 6 :precision 20 :name :bar :type :decimal }
+                              { :name :description :type :text }
+                              { :name :deleted-at :type :time }]]
+        (is (= (get table-description :name) :test))
+        (is (get table-description :columns))
+        (is (= (count (get table-description :columns)) (count expected-columns)))
+        (doseq [column-pair (map #(list %1 %2) (get table-description :columns) expected-columns)]
+          (is (= (first column-pair) (second column-pair)))))
+      (is (drift-db/column-exists? :test :id))
       (is (drift-db/column-exists? :test "bar"))
       (drift-db/add-column :test
         (drift-db/string :added))
@@ -46,7 +50,7 @@
       (is (not (drift-db/column-exists? :test :bar)))
 
       (finally 
-        (drift-db/drop-table :test)
+        (drift-db/drop-table-if-exists :test)
         (is (not (drift-db/table-exists? :test)))))))
 
 (deftest test-rows

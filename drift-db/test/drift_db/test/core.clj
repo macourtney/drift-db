@@ -35,16 +35,18 @@
     (apply update-map (update-map map key value) others)))
 
 (defn assert-integer-spec
-  ([date-spec column-name]
-    (assert-column-spec date-spec :integer column-name))
-  ([date-spec column-name not-null primary-key]
-    (assert-column-spec date-spec :integer column-name (update-map {} :not-null not-null :primary-key primary-key))))
+  ([integer-spec column-name]
+    (assert-column-spec integer-spec :integer column-name))
+  ([integer-spec column-name not-null primary-key auto-increment]
+    (assert-column-spec integer-spec :integer column-name
+      (update-map {} :not-null not-null :primary-key primary-key :auto-increment auto-increment))))
 
 (deftest test-integer
   (assert-integer-spec (integer :test) :test)
-  (assert-integer-spec (integer :test { :not-null true }) :test true nil)
-  (assert-integer-spec (integer :test { :primary-key true }) :test nil true)
-  (assert-integer-spec (integer :test { :not-null true :primary-key true }) :test true true)
+  (assert-integer-spec (integer :test { :not-null true }) :test true nil false)
+  (assert-integer-spec (integer :test { :primary-key true }) :test nil true false)
+  (assert-integer-spec (integer :test { :not-null true :primary-key true }) :test true true false)
+  (assert-integer-spec (integer :test { :auto-increment true }) :test false false true)
   (assert-integer-spec (integer :test { :fail :fail }) :test))
 
 (deftest test-column-name
