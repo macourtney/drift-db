@@ -29,15 +29,6 @@
     (.getSubString value 1 (.length value))
     value))
 
-(defn-
-#^{ :doc "Cleans up the given row, loading any clobs into memory." }
-  clean-row [row]
-  (reduce 
-    (fn [new-map pair] 
-        (assoc new-map (first pair) (clean-value (second pair))))
-    {} 
-    row))
-
 (defn
 #^{:doc "Returns the given key or string as valid table name. Basically turns any keyword into a string, and replaces
 dashes with underscores."}
@@ -55,7 +46,16 @@ any keyword into a string, and replaces dashes with underscores."}
 any string into a keyword, and replaces underscores with dashes." }
   column-name-key [column-name]
   (when column-name
-    (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase column-name)))))
+    (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase (name column-name))))))
+
+(defn-
+#^{ :doc "Cleans up the given row, loading any clobs into memory." }
+  clean-row [row]
+  (reduce 
+    (fn [new-map pair] 
+        (assoc new-map (column-name-key (first pair)) (clean-value (second pair))))
+    {} 
+    row))
 
 (defn
 #^{:doc "Returns the primary key spec vector from the given mods map."}
@@ -86,11 +86,11 @@ any string into a keyword, and replaces underscores with dashes." }
   [(spec-column-name column-spec) "DATETIME"])
 
 (defmethod column-spec-vec :integer [column-spec]
-  (concat [(spec-column-name column-spec) "INT"] (not-null-mod column-spec) (auto-increment-mod column-spec)
-    (primary-key-mod column-spec)))
+  (concat [(spec-column-name column-spec) (if (> (get column-spec :length 9) 9) "BIGINT" "INT")]
+          (not-null-mod column-spec) (auto-increment-mod column-spec) (primary-key-mod column-spec)))
 
 (defmethod column-spec-vec :id [column-spec]
-  (column-spec-vec (assoc column-spec :type :integer)))
+  (column-spec-vec (merge column-spec { :type :integer :auto-increment true })))
 
 (defmethod column-spec-vec :belongs-to [column-spec]
   (column-spec-vec (assoc column-spec :type :integer)))
@@ -337,7 +337,7 @@ any string into a keyword, and replaces underscores with dashes." }
     (do
       (logging/debug (str "Drop table: " (table-name table)))
       (when (some #(= (.toUpperCase (table-name table)) %)
-              (map #(get % :table_name) (drift-db-protocol/execute-query flavor ["SHOW TABLES"])))
+              (map #(get % :table-name) (drift-db-protocol/execute-query flavor ["SHOW TABLES"])))
         (sql/with-connection (drift-db-protocol/db-map flavor)
           (sql/drop-table (table-name table))))))
 

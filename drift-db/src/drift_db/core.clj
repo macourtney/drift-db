@@ -71,6 +71,41 @@
 
 ;; Column Functions
 
+(defn table-name
+  "Returns the name of the table from the given table metadata"
+  [table-metadata]
+  (:name table-metadata))
+
+(defn column-type
+  "Returns the type of the column from the given column metadata"
+  [column-metadata]
+  (:type column-metadata))
+
+(defn column-length
+  "Returns the length of the column from the given column metadata"
+  [column-metadata]
+  (:length column-metadata))
+
+(defn column-auto-increment
+  "Returns the auto increment value of the column from the given column metadata"
+  [column-metadata]
+  (:auto-increment column-metadata))
+
+(defn column-default
+  "Returns the default value if it exists of the column from the given column metadata"
+  [column-metadata]
+  (:default column-metadata))
+
+(defn column-not-null
+  "Returns true if the column with the given metadata is not nullable."
+  [column-metadata]
+  (:not-null column-metadata))
+
+(defn column-primary-key
+  "Returns true if the column with the given metadata is the primary key."
+  [column-metadata]
+  (:primary-key column-metadata))
+
 (defn add-column
   "Adds a column described by spec to the given table. Spec is a map describing a column."
   [table spec]
@@ -97,9 +132,10 @@
 (defn columns
   "Returns the list of columns of the given table. Table can be either the name of the table, or the full table map."
   [table]
-  (if (map? table)
-    (get table :columns)
-    (recur (describe-table table))))
+  (when table
+    (if (map? table)
+      (get table :columns)
+      (recur (describe-table table)))))
 
 (defn find-column
   "Returns the given column from the give table. Column can be either the column name or a column spec. Table can be
@@ -270,3 +306,4 @@
       record - A map from strings or keywords (identifying columns) to updated values."
   [table where-or-record record]
   (flavor-protocol/update @drift-db-flavor table where-or-record record))
+

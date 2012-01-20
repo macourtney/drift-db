@@ -56,7 +56,16 @@ any keyword into a string, and replaces dashes with underscores."}
 any string into a keyword, and replaces underscores with dashes."}
   column-name-key [column-name]
   (when column-name
-    (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase column-name)))))
+    (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase (name column-name))))))
+
+(defn-
+#^{ :doc "Cleans up the given row, loading any clobs into memory." }
+  clean-row [row]
+  (reduce 
+    (fn [new-map pair] 
+        (assoc new-map (column-name-key (first pair)) (second pair)))
+    {} 
+    row))
 
 (defn spec-column-name
   "Returns the column name from the given columns spec"
@@ -273,7 +282,7 @@ any string into a keyword, and replaces underscores with dashes."}
       (logging/debug (str "Executing query: " sql-vector))
       (sql/with-connection (drift-db-protocol/db-map flavor)
         (sql/with-query-results rows sql-vector
-          (doall rows)))))
+          (doall (map clean-row rows))))))
 
   (execute-commands [flavor sql-strings]
     (do

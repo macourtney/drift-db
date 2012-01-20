@@ -69,7 +69,8 @@
   (let [test-columns [{ :default "" :length 20 :not-null true :primary-key true :name :name :type :string }
                       { :name :created-at :type :date }
                       { :name :edited-at :type :date-time }]]
-    (is (= (columns { :name :test :columns test-columns }) test-columns))))
+    (is (= (columns { :name :test :columns test-columns }) test-columns))
+    (is (nil? (columns nil)))))
 
 (deftest test-find-column
   (let [test-column-name :created-at
@@ -80,3 +81,42 @@
         test-table { :name :test :columns test-columns }]
     (is (= (find-column test-table test-column-name) test-column))
     (is (= (find-column test-table test-column) test-column))))
+
+(def test-column-metadata-1 { :auto-increment true, :default "(NEXT VALUE FOR PUBLIC.SYSTEM_SEQUENCE_D36D2960_AD38_447B_A6F4_4F202EE4E709)", :length 10, :not-null true, :primary-key true, :name :id, :type :integer })
+(def test-column-metadata-2 { :length 255, :name :text, :type :string })
+
+(def test-table-metadata { :name "messages", :columns (test-column-metadata-1 test-column-metadata-2) })
+
+(deftest test-table-name
+  (is (= (:name test-table-metadata) (table-name test-table-metadata)))
+  (is (nil? (table-name nil))))
+
+(deftest test-column-type
+  (is (= (:type test-column-metadata-1) (column-type test-column-metadata-1)))
+  (is (= (:type test-column-metadata-2) (column-type test-column-metadata-2)))
+  (is (nil? (column-type nil))))
+
+(deftest test-column-length
+  (is (= (:length test-column-metadata-1) (column-length test-column-metadata-1)))
+  (is (= (:length test-column-metadata-2) (column-length test-column-metadata-2)))
+  (is (nil? (column-length nil))))
+
+(deftest test-column-auto-increment
+  (is (= (:auto-increment test-column-metadata-1) (column-auto-increment test-column-metadata-1)))
+  (is (= (:auto-increment test-column-metadata-2) (column-auto-increment test-column-metadata-2)))
+  (is (nil? (column-auto-increment nil))))
+
+(deftest test-column-default
+  (is (= (:default test-column-metadata-1) (column-default test-column-metadata-1)))
+  (is (= (:default test-column-metadata-2) (column-default test-column-metadata-2)))
+  (is (nil? (column-default nil))))
+
+(deftest test-column-not-null
+  (is (= (:not-null test-column-metadata-1) (column-not-null test-column-metadata-1)))
+  (is (= (:not-null test-column-metadata-2) (column-not-null test-column-metadata-2)))
+  (is (nil? (column-not-null nil))))
+
+(deftest test-column-primary-key
+  (is (= (:primary-key test-column-metadata-1) (column-primary-key test-column-metadata-1)))
+  (is (= (:primary-key test-column-metadata-2) (column-primary-key test-column-metadata-2)))
+  (is (nil? (column-primary-key nil))))
