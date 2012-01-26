@@ -82,12 +82,22 @@ The above example drops the table with the name text.
 
 ### Testing for the existence of a table.
 
-To test for the existence of a table, use the `table-exists?` function:
+To test for the existence of a table, use the `table-exists?` function.
 
 Example:
 
 ```clojure
   (table-exists? :test)
+```
+
+### Dropping a table if it exists
+
+To drop a table if and only if it exists, use the `drop-table-if-exists` function.
+
+Example:
+
+```clojure
+(drop-table-if-exists :test)
 ```
 
 ### Describing a table.
