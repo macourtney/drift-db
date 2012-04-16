@@ -120,3 +120,6 @@
   (is (= (:primary-key test-column-metadata-1) (column-primary-key test-column-metadata-1)))
   (is (= (:primary-key test-column-metadata-2) (column-primary-key test-column-metadata-2)))
   (is (nil? (column-primary-key nil))))
+
+(deftest test-belongs-to
+  (is (= (assoc (integer "test_id") :type :belongs-to) (belongs-to "test"))))
