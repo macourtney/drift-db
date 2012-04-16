@@ -14,6 +14,11 @@
   []
   (not (nil? @drift-db-flavor)))
 
+(defn db-map
+  "Returns the db-map in the loaded db-flavor."
+  []
+  (flavor-protocol/db-map @drift-db-flavor))
+
 (defn execute-query
   "Runs the given sql query vector using the currently set protocol. The sql-vector is in the form [sql & params],
   where sql is the sql statment string and params is a list of values which will be passed to the sql statement string
