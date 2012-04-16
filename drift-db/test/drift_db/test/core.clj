@@ -122,4 +122,6 @@
   (is (nil? (column-primary-key nil))))
 
 (deftest test-belongs-to
-  (is (= (assoc (integer "test_id") :type :belongs-to) (belongs-to "test"))))
+  (is (= (assoc (integer "test_id") :type :belongs-to) (belongs-to "test")))
+  (is (= (assoc (integer "test_id") :type :belongs-to) (belongs-to :test-id)))
+  (is (= (assoc (integer "test_id") :type :belongs-to) (belongs-to :test_id))))

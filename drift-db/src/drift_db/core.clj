@@ -1,5 +1,6 @@
 (ns drift-db.core
   (:require [clojure.tools.logging :as logging]
+            [clojure.tools.loading-utils :as loading-utils]
             [clojure.tools.string-utils :as string-utils]
             [drift-db.protocol :as flavor-protocol]))
 
@@ -217,7 +218,8 @@
    Curently supported values for mods is exactly the same as integer."
   ([model] (belongs-to model {}))
   ([model mods]
-    (assoc (integer (string-utils/add-ending-if-absent (name model) "_id") mods) :type :belongs-to)))
+    (assoc (integer (string-utils/add-ending-if-absent (loading-utils/dashes-to-underscores (name model)) "_id") mods)
+           :type :belongs-to)))
 
 (defn decimal
   "Returns a new spec describing a decimal with the given column and spec mods map. Use this method with the 
