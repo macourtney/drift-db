@@ -38,7 +38,9 @@
 
         table - the table to run the select statement on
         select - the columns to return. Either a string, or a vector of column names.
-        where - the conditions as a string, vector, or prototype record"
+        where - the conditions as a string, vector, or prototype record
+        limit - the number of rows to return
+        offset - the starting row"
   [select-map]
   (flavor-protocol/sql-find @drift-db-flavor select-map))
 

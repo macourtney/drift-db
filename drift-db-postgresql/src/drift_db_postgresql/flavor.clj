@@ -1,23 +1,25 @@
-(ns drift-db-mysql.flavor
+(ns drift-db-postgresql.flavor
   (:require [clojure.java.jdbc :as sql]
             [clojure.tools.loading-utils :as conjure-loading-utils]
             [clojure.tools.logging :as logging]
             [clojure.string :as clojure-str]
             [drift-db.protocol :as drift-db-protocol])
-  (:import [com.mysql.jdbc.jdbc2.optional MysqlDataSource]
+  (:import [org.postgresql.ds PGSimpleDataSource]
            [java.text SimpleDateFormat]))
 
 (defn
 #^{:doc "Returns an mysql datasource for a ."}
   create-datasource
-    ([connection-url] (create-datasource connection-url nil nil))
-    ([connection-url username password]
-      (let [mysql-datasource (new MysqlDataSource)]
-      (. mysql-datasource setURL connection-url)
+  ([server-name database-name] (create-datasource server-name database-name nil nil))
+  ([server-name database-name username password]
+    (let [mysql-datasource (doto (new PGSimpleDataSource)
+                             (.setServerName server-name)
+                             (.setDatabaseName database-name))]
       (if (and username password)
-        (. mysql-datasource setUser username)
-        (. mysql-datasource setPassword password))
-      mysql-datasource)))
+        (doto mysql-datasource
+          (.setUser username)
+          (.setPassword password))
+        mysql-datasource))))
 
 (defn
 #^{:doc "Returns the given string surrounded by backquotes."}
@@ -260,22 +262,19 @@ any string into a keyword, and replaces underscores with dashes."}
 (deftype MysqlFlavor [username password dbname host]
   drift-db-protocol/Flavor
   (db-map [flavor]
-    (let [subprotocol "mysql"
-          subname (str "//" host "/" dbname)]
+    { :flavor flavor
 
-      { :flavor flavor
+      ;; The name of the JDBC driver to use.
+      :classname "org.postgresql.Driver"
 
-        ;; The name of the JDBC driver to use.
-        :classname "com.mysql.jdbc.Driver"
+      ;; A datasource for the database.
+      :datasource (create-datasource host dbname username password)
+      
+      ;; The user name to use when connecting to the database.
+      :username username
 
-        ;; A datasource for the database.
-        :datasource (create-datasource (format "jdbc:%s:%s" subprotocol subname))
-        
-        ;; The user name to use when connecting to the database.
-        :username username
-
-        ;; The password to use when connecting to the database.
-        :password password }))
+      ;; The password to use when connecting to the database.
+      :password password })
 
   (execute-query [flavor sql-vector]
     (do

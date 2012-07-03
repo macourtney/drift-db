@@ -321,9 +321,11 @@ any string into a keyword, and replaces underscores with dashes." }
           select-clause (convert-select (get select-map :select))
           where-clause (convert-where (get select-map :where))
           limit-clause (get select-map :limit)
+          offset-clause (get select-map :offset)
           select-str (str "SELECT " select-clause " FROM " (table-name table)
                        (when where-clause (str " WHERE " (first where-clause))) 
-                       (when limit-clause (str " LIMIT " limit-clause)))]
+                       (when limit-clause (str " LIMIT " limit-clause))
+                       (when offset-clause (str " OFFSET " offset-clause)))]
       (drift-db-protocol/execute-query flavor
         (vec (concat [select-str] (when where-clause (rest where-clause)))))))
 
