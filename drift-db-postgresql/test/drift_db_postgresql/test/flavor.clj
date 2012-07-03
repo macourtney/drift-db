@@ -9,7 +9,7 @@
 (def password "drift-db-pass")
 
 (deftest create-flavor
-  (let [flavor (mysql-flavor username password dbname)]
+  (let [flavor (postgresql-flavor username password dbname)]
     (try
       (is flavor)
       (drift-db/init-flavor flavor)
@@ -54,7 +54,7 @@
         (is (not (drift-db/table-exists? :test)))))))
 
 (deftest test-rows
-  (let [flavor (mysql-flavor username password dbname)]
+  (let [flavor (postgresql-flavor username password dbname)]
     (try
       (is flavor)
       (drift-db/init-flavor flavor)

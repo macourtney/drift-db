@@ -22,15 +22,15 @@
         mysql-datasource))))
 
 (defn
-#^{:doc "Returns the given string surrounded by backquotes."}
-  backquote [s]
-  (str "`" s "`"))
+#^{:doc "Returns the given string surrounded by double quotes."}
+  identifier-quote [s]
+  (str "\"" s "\""))
 
 (defn
 #^{:doc "Returns the given key or string as valid table name. Basically turns 
 any keyword into a string, and replaces dashes with underscores."}
   table-name [table]
-  (backquote (conjure-loading-utils/dashes-to-underscores (name table))))
+  (identifier-quote (conjure-loading-utils/dashes-to-underscores (name table))))
 
 (defn
 #^{:doc "Returns the not null spec vector from the given mods map."}
@@ -51,7 +51,7 @@ any keyword into a string, and replaces dashes with underscores."}
 #^{:doc "Returns the given key or string as valid column name. Basically turns 
 any keyword into a string, and replaces dashes with underscores."}
   column-name [column]
-  (backquote (conjure-loading-utils/dashes-to-underscores (name column))))
+  (identifier-quote (conjure-loading-utils/dashes-to-underscores (name column))))
 
 (defn
 #^{:doc "Returns the given valid column name as a keyword. Basically turns 
@@ -80,14 +80,16 @@ any string into a keyword, and replaces underscores with dashes."}
   [(spec-column-name column-spec) "DATE"])
 
 (defmethod column-spec-vec :date-time [column-spec]
-  [(spec-column-name column-spec) "DATETIME"])
+  [(spec-column-name column-spec) "TIMESTAMP"])
 
 (defmethod column-spec-vec :integer [column-spec]
-  (let [int-length (get column-spec :length 11)
-        int-type (if (> int-length 11) "BIGINT" "INT")
-        integer (str int-type "(" int-length ")")]
-    (concat [(spec-column-name column-spec) integer] (not-null-mod column-spec)
-      (auto-increment-mod column-spec) (primary-key-mod column-spec))))
+  
+  (if (:auto-increment column-spec)
+    [(spec-column-name column-spec) "SERIAL"]
+    (let [int-length (get column-spec :length 11)
+          int-type (cond (< int-length 5) "SMALLINT" (> int-length 9) "BIGINT" :else "INTEGER")
+          integer int-type]
+      (concat [(spec-column-name column-spec) integer] (not-null-mod column-spec) (primary-key-mod column-spec)))))
 
 (defmethod column-spec-vec :id [column-spec]
   (column-spec-vec (assoc column-spec :type :integer)))
@@ -259,7 +261,7 @@ any string into a keyword, and replaces underscores with dashes."}
       (clojure-str/join ", " (map name select-or-list)))
     "*"))
 
-(deftype MysqlFlavor [username password dbname host]
+(deftype PostgresqlFlavor [username password dbname host]
   drift-db-protocol/Flavor
   (db-map [flavor]
     { :flavor flavor
@@ -324,7 +326,9 @@ any string into a keyword, and replaces underscores with dashes."}
     (do
       (logging/debug (str "Describe table: " table))
       { :name table
-        :columns (map parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))]))}))
+        :columns (map parse-column 
+                      (drift-db-protocol/execute-query flavor 
+                        [(str "SELECT column_name FROM information_schema.columns WHERE table_name = '" (name table) "';")]))}))
 
   (add-column [flavor table spec]
     (drift-db-protocol/execute-commands flavor
@@ -361,7 +365,7 @@ any string into a keyword, and replaces underscores with dashes."}
       (sql/with-connection (drift-db-protocol/db-map flavor)
         (sql/update-values (table-name table) (convert-where where-or-record) record)))))
 
-(defn mysql-flavor
-  ([username password dbname] (mysql-flavor username password dbname "localhost"))
+(defn postgresql-flavor
+  ([username password dbname] (postgresql-flavor username password dbname "localhost"))
   ([username password dbname host]
-    (MysqlFlavor. username password dbname host)))
+    (PostgresqlFlavor. username password dbname host)))
