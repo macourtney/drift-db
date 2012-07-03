@@ -123,12 +123,12 @@ any string into a keyword, and replaces underscores with dashes."}
   (clojure-str/join " " (spec-vec spec)))
 
 (def date-regex #"date")
-(def date-time-regex #"datetime")
-(def integer-regex #"int\((\d+)\)")
-(def decimal-regex #"decimal\((\d+)(,\s*(\d+))?\)")
-(def varchar-regex #"varchar\((\d+)\)")
+(def date-time-regex #"timestamp without time zone")
+(def integer-regex #"smallint|integer|bigint")
+(def decimal-regex #"numeric")
+(def varchar-regex #"character varying")
 (def text-regex #"text")
-(def time-regex #"time")
+(def time-regex #"time without time zone")
 
 (defn is-date-column [column-type]
   (re-matches date-regex column-type))
@@ -187,12 +187,12 @@ any string into a keyword, and replaces underscores with dashes."}
     column-map))
 
 (defn add-not-null [column-desc column-map]
-  (if (= (get column-desc :null) "NO")
+  (if (= (get column-desc :is-nullable) "NO")
     (assoc column-map :not-null true)
     column-map))
 
 (defn add-length [column-desc column-map]
-  (if-let [length (parse-length (get column-desc :type))]
+  (if-let [length (:character-maximum-length column-desc)]
     (assoc column-map :length length)
     column-map))
 
@@ -201,38 +201,25 @@ any string into a keyword, and replaces underscores with dashes."}
     (assoc column-map :default default)
     column-map))
 
-(defn parse-precision [column-type]
-  (when column-type
-    (let [matcher (re-matcher decimal-regex column-type)]
-      (when (.matches matcher)
-        (Integer/parseInt (second (re-groups matcher)))))))
-
 (defn add-precision [column-desc column-map]
-  (if-let [precision (parse-precision (get column-desc :type))]
+  (if-let [precision (:numeric-precision column-desc)]
     (assoc column-map :precision precision)
     column-map))
 
-(defn parse-scale [column-type]
-  (when column-type
-    (let [matcher (re-matcher decimal-regex column-type)]
-      (when (and (.matches matcher) (> (.groupCount matcher) 2))
-        (let [scale-str (.group matcher 3)]
-          (when (not-empty scale-str)
-            (Integer/parseInt scale-str)))))))
-
 (defn add-scale [column-desc column-map]
-  (if-let [scale (parse-scale (get column-desc :type))]
+  (if-let [scale (:numeric-scale column-desc)]
     (assoc column-map :scale scale)
     column-map))
 
 (defn add-auto-increment [column-desc column-map]
-  (if-let [extra (get column-desc :extra)]
-    (if (= extra "auto_increment")
+  (if-let [extra (get column-desc :column-default)]
+    (if (.startsWith extra "nextval(")
       (assoc column-map :auto-increment true)
       column-map)
     column-map))
 
 (defn parse-column [column-desc]
+  ;(logging/info (str "column-desc: " column-desc))
   (add-auto-increment column-desc
     (add-scale column-desc
       (add-precision column-desc
@@ -240,8 +227,8 @@ any string into a keyword, and replaces underscores with dashes."}
           (add-length column-desc
             (add-not-null column-desc
               (add-primary-key column-desc
-                { :name (column-name-key (get column-desc :field))
-                  :type (parse-type (get column-desc :type)) }))))))))
+                { :name (column-name-key (get column-desc :column-name))
+                  :type (parse-type (get column-desc :data-type)) }))))))))
 
 (defn pair-to-equals [pair]
   (str "(" (column-name (first pair)) " = ?)"))
@@ -328,7 +315,7 @@ any string into a keyword, and replaces underscores with dashes."}
       { :name table
         :columns (map parse-column 
                       (drift-db-protocol/execute-query flavor 
-                        [(str "SELECT column_name FROM information_schema.columns WHERE table_name = '" (name table) "';")]))}))
+                        [(str "SELECT column_name, data_type, character_maximum_length, numeric_scale, numeric_precision, is_nullable, column_default FROM information_schema.columns WHERE table_name = '" (name table) "';")]))})) ; 
 
   (add-column [flavor table spec]
     (drift-db-protocol/execute-commands flavor
