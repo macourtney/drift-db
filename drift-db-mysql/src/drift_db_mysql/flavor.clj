@@ -335,6 +335,15 @@ any string into a keyword, and replaces underscores with dashes."}
     (drift-db-protocol/execute-commands flavor
       [(str "ALTER TABLE " (table-name table) " DROP COLUMN " (column-name column))]))
 
+  (update-column [flavor table column spec]
+    (when-let [old-column-name (column-name column)]
+      (let [column-name (or (spec-column-name spec) old-column-name)]
+        (if (not (= old-column-name column-name))
+          (drift-db-protocol/execute-commands flavor
+            [(str "ALTER TABLE " (table-name table) " CHANGE COLUMN " old-column-name " " (spec-str spec))])
+          (drift-db-protocol/execute-commands flavor
+            [(str "ALTER TABLE " (table-name table) " MODIFY COLUMN " (spec-str (assoc spec :name column-name)))])))))
+
   (format-date [flavor date]
     (. (new SimpleDateFormat "yyyy-MM-dd") format date))
 

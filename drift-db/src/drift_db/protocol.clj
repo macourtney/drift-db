@@ -38,6 +38,9 @@
 
   (drop-column [flavor table column] "Removes the given column from the given table.")
 
+  (update-column [flavor table column spec]
+                 "Updates the given column to the given spec. Spec is exactly the same map used in add-column.") 
+
   (format-date [flavor date] "Returns the string value of the given date for use in the database.")
 
   (format-date-time [flavor date] "Returns the string value of the given date as a date time for use in the database.")

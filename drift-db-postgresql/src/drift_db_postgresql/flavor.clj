@@ -74,45 +74,46 @@ any string into a keyword, and replaces underscores with dashes."}
   [column-spec]
   (column-name (get column-spec :name)))
 
-(defmulti column-spec-vec (fn [column-spec] (get column-spec :type)))
+(defmulti type-vec (fn [column-spec] (get column-spec :type)))
 
-(defmethod column-spec-vec :date [column-spec]
-  [(spec-column-name column-spec) "DATE"])
+(defmethod type-vec :date [column-spec]
+  ["DATE"])
 
-(defmethod column-spec-vec :date-time [column-spec]
-  [(spec-column-name column-spec) "TIMESTAMP"])
+(defmethod type-vec :date-time [column-spec]
+  ["TIMESTAMP"])
 
-(defmethod column-spec-vec :integer [column-spec]
-  
+(defmethod type-vec :integer [column-spec]
   (if (:auto-increment column-spec)
-    [(spec-column-name column-spec) "SERIAL"]
+    ["SERIAL"]
     (let [int-length (get column-spec :length 11)
-          int-type (cond (< int-length 5) "SMALLINT" (> int-length 9) "BIGINT" :else "INTEGER")
-          integer int-type]
-      (concat [(spec-column-name column-spec) integer] (not-null-mod column-spec) (primary-key-mod column-spec)))))
+          int-type (cond (< int-length 5) "SMALLINT" (> int-length 9) "BIGINT" :else "INTEGER")]
+      (concat [int-type] (not-null-mod column-spec) (primary-key-mod column-spec)))))
 
-(defmethod column-spec-vec :id [column-spec]
-  (column-spec-vec (assoc column-spec :type :integer)))
+(defmethod type-vec :id [column-spec]
+  (type-vec (assoc column-spec :type :integer)))
 
-(defmethod column-spec-vec :belongs-to [column-spec]
-  (column-spec-vec (assoc column-spec :type :integer)))
+(defmethod type-vec :belongs-to [column-spec]
+  (type-vec (assoc column-spec :type :integer)))
 
-(defmethod column-spec-vec :decimal [column-spec]
+(defmethod type-vec :decimal [column-spec]
   (let [precision (get column-spec :precision 20)
         scale (get column-spec :scale 6)
         decimal (str "DECIMAL(" precision "," scale ")")]
-    (concat [(spec-column-name column-spec) decimal] (not-null-mod column-spec) (primary-key-mod column-spec))))
+    (concat [decimal] (not-null-mod column-spec) (primary-key-mod column-spec))))
 
-(defmethod column-spec-vec :string [column-spec]
+(defmethod type-vec :string [column-spec]
   (let [length (get column-spec :length 255)
         varchar (str "VARCHAR(" length ")")]
-    (concat [(spec-column-name column-spec) varchar] (not-null-mod column-spec) (primary-key-mod column-spec))))
+    (concat [varchar] (not-null-mod column-spec) (primary-key-mod column-spec))))
 
-(defmethod column-spec-vec :text [column-spec]
-  [(spec-column-name column-spec) "TEXT"])
+(defmethod type-vec :text [column-spec]
+  ["TEXT"])
 
-(defmethod column-spec-vec :time [column-spec]
-  [(spec-column-name column-spec) "TIME"])
+(defmethod type-vec :time [column-spec]
+  ["TIME"])
+
+(defn column-spec-vec [column-spec]
+  (cons (spec-column-name column-spec) (type-vec column-spec)))
 
 (defmulti spec-vec (fn [spec] (get spec :spec-type)))
 
@@ -223,7 +224,6 @@ any string into a keyword, and replaces underscores with dashes."}
     column-map))
 
 (defn parse-column [column-desc]
-  ;(logging/info (str "column-desc: " column-desc))
   (add-auto-increment column-desc
     (add-scale column-desc
       (add-precision column-desc
@@ -328,6 +328,15 @@ any string into a keyword, and replaces underscores with dashes."}
   (drop-column [flavor table column]
     (drift-db-protocol/execute-commands flavor
       [(str "ALTER TABLE " (table-name table) " DROP COLUMN " (column-name column))]))
+
+  (update-column [flavor table column spec]
+    (when-let [old-column-name (column-name column)]
+      (let [column-name (or (spec-column-name spec) old-column-name)]
+        (when (not (= old-column-name column-name))
+          (drift-db-protocol/execute-commands flavor
+            [(str "ALTER TABLE " (table-name table) " RENAME " old-column-name " TO " column-name)]))
+        (drift-db-protocol/execute-commands flavor
+          [(str "ALTER TABLE " (table-name table) " ALTER COLUMN " column-name " TYPE " (clojure-str/join " " (type-vec spec)))]))))
 
   (format-date [flavor date]
     (. (new SimpleDateFormat "yyyy-MM-dd") format date))

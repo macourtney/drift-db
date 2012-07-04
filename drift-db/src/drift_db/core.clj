@@ -125,6 +125,11 @@
   [table column]
   (flavor-protocol/drop-column @drift-db-flavor table column))
 
+(defn update-column
+  "Updates the given column to the given spec. Spec is exactly the same map used in add-column."
+  [table column spec]
+  (flavor-protocol/update-column @drift-db-flavor table column spec))
+
 (defn column-name
   "Given a column name or column spec, this function returns the column name."
   [column]

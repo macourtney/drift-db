@@ -37,14 +37,24 @@
           (is (= (first column-pair) (second column-pair)))))
       (is (drift-db/column-exists? :test :id))
       (is (drift-db/column-exists? :test "bar"))
+
       (drift-db/add-column :test
         (drift-db/string :added))
       (is (= (drift-db/find-column :test :added)
             { :length 255, :name :added, :type :string }))
-      (drift-db/drop-column :test :added)
-      (is (not (drift-db/column-exists? :test :added)))
 
-      (drift-db/drop-column-if-exists :test :added)
+      (drift-db/update-column :test
+        :added (drift-db/string :altered-test))
+      (is (= (drift-db/find-column :test :altered-test)
+            { :length 255, :name :altered-test, :type :string }))
+
+      (drift-db/update-column :test
+        :altered-test (drift-db/string :altered { :length 100 }))
+      (is (= (drift-db/find-column (drift-db/describe-table :test) :altered)
+            { :length 100, :name :altered, :type :string }))
+
+      (drift-db/drop-column :test :altered)
+      (is (not (drift-db/column-exists? :test :altered)))
 
       (drift-db/drop-column-if-exists :test :bar)
       (is (not (drift-db/column-exists? :test :bar)))
