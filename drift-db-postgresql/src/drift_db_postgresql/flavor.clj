@@ -202,13 +202,17 @@ any string into a keyword, and replaces underscores with dashes."}
     column-map))
 
 (defn add-precision [column-desc column-map]
-  (if-let [precision (:numeric-precision column-desc)]
-    (assoc column-map :precision precision)
+  (if (= (:type column-map) :decimal)
+    (if-let [precision (:numeric-precision column-desc)]
+      (assoc column-map :precision precision)
+      column-map)
     column-map))
 
 (defn add-scale [column-desc column-map]
-  (if-let [scale (:numeric-scale column-desc)]
-    (assoc column-map :scale scale)
+  (if (= (:type column-map) :decimal)
+    (if-let [scale (:numeric-scale column-desc)]
+      (assoc column-map :scale scale)
+      column-map)
     column-map))
 
 (defn add-auto-increment [column-desc column-map]

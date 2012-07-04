@@ -23,7 +23,7 @@
         (drift-db/time-type :deleted-at))
       (is (drift-db/table-exists? :test))
       (let [table-description (drift-db/describe-table :test)
-            expected-columns [{ :name :id :length 11 :not-null true :primary-key true :type :integer :auto-increment true }
+            expected-columns [{ :name :id :not-null true :type :integer :auto-increment true }
                               { :name :name :length 20 :not-null true :type :string }
                               { :name :created-at :type :date }
                               { :name :edited-at :type :date-time }
