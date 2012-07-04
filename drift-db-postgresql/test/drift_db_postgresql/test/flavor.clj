@@ -8,6 +8,18 @@
 (def username "drift-db")
 (def password "drift-db-pass")
 
+(deftest test-order-clause
+  (is (= (order-clause { :order-by :test}) " ORDER BY \"test\""))
+  (is (= (order-clause { :order-by { :expression :test }}) " ORDER BY \"test\""))
+  (is (= (order-clause { :order-by { :expression :test :direction :aSc }}) " ORDER BY \"test\" ASC"))
+  (is (= (order-clause { :order-by { :expression :test :direction :aSc :nulls "fIrSt" }})
+         " ORDER BY \"test\" ASC NULLS FIRST"))
+  (is (= (order-clause { :order-by { :expression :test :nulls :last }}) " ORDER BY \"test\" NULLS LAST"))
+  (is (= (order-clause { :order-by [:test :test2]}) " ORDER BY \"test\", \"test2\""))
+  (is (= (order-clause { :order-by [{ :expression :test :direction :aSc :nulls "fIrSt" }
+                                    { :expression :test2 :direction :desc :nulls "last" }]})
+         " ORDER BY \"test\" ASC NULLS FIRST, \"test2\" DESC NULLS LAST")))
+
 (deftest create-flavor
   (let [flavor (postgresql-flavor username password dbname)]
     (try
@@ -76,7 +88,8 @@
             test-row { :name test-row-name }
             test-row2 { :name test-row-name2 }]
         (drift-db/insert-into :test test-row)
-        (is (= (first (drift-db/sql-find { :table :test :where [(str "NAME = '" test-row-name "'")] :limit 1 })) test-row))
+        (is (= (first (drift-db/sql-find { :table :test :where [(str "NAME = '" test-row-name "'")] :limit 1 :order-by :name }))
+               test-row))
         (drift-db/update :test ["NAME = ?" test-row-name] { :name test-row-name2 })
         (is (= (first (drift-db/sql-find { :table :test :where ["NAME = ?" test-row-name2] })) test-row2))
         (drift-db/update :test { :name test-row-name2 } { :name test-row-name })

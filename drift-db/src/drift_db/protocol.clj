@@ -16,7 +16,12 @@
 
         table - the table to run the select statement on
         select - the columns to return. Either a string, or a vector of column names.
-        where - the conditions as a string, vector, or prototype record")
+        where - the conditions as a string, vector, or prototype record
+        offset - the index of the first row to return
+        limit - the number of rows to return
+        order-by - the order to return the rows in. The value can be either a column as a keyword, string or index, a
+                map which includes the :expression (the column name, column index, or expression), :direction (assceding
+                or descending, optional), and :nulls (first or last, optional) or a vector of maps.")
 
   (create-table [flavor table specs]
     "Creates a new table with the given name and with columns based on the given specs.")

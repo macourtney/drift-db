@@ -252,6 +252,58 @@ any string into a keyword, and replaces underscores with dashes."}
       (clojure-str/join ", " (map name select-or-list)))
     "*"))
 
+(defn select-clause
+  "Returns the columns to return for a select statement."
+  [select-map]
+  (convert-select (get select-map :select)))
+
+(defn where-clause
+  "Returns where clause for a select statement."
+  [select-map]
+  (when-let [clause (convert-where (get select-map :where))]
+    (str " WHERE " (first clause))))
+
+(defn where-values
+  "Returns where values for a select statement."
+  [select-map]
+  (when-let [clause (convert-where (get select-map :where))]
+    (rest clause)))
+
+(defn limit-clause
+  "Returns the limit clause for a select statement."
+  [select-map]
+  (when-let [clause (get select-map :limit)]
+    (str " LIMIT " clause)))
+
+(defn offset-clause
+  "Returns the offset clause for a select statement."
+  [select-map]
+  (when-let [clause (get select-map :offset)]
+    (str " OFFSET " clause)))
+
+(defn map-order-clause [clause]
+  (str (column-name (get clause :expression))
+    (when-let [direction (get clause :direction)]
+      (let [direction (clojure-str/lower-case (name direction))]
+        (if (or (= direction "ascending") (= direction "asc"))
+          " ASC"
+          " DESC")))
+    (when-let [nulls (get clause :nulls)]
+      (str " NULLS " (if (= (clojure-str/lower-case (name nulls)) "first") "FIRST" "LAST")))))
+
+(defn order-str [clause]
+  (cond
+    (map? clause) (map-order-clause clause)
+    (or (vector? clause) (seq? clause)) (clojure-str/join ", " (map order-str clause))
+    (keyword? clause) (column-name clause)
+    :else clause))
+
+(defn order-clause
+  "Returns the offset clause for a select statement."
+  [select-map]
+  (when-let [clause (get select-map :order-by)]
+    (str " ORDER BY " (order-str clause))))
+
 (deftype PostgresqlFlavor [username password dbname host]
   drift-db-protocol/Flavor
   (db-map [flavor]
@@ -283,17 +335,13 @@ any string into a keyword, and replaces underscores with dashes."}
         (apply sql/do-commands sql-strings))))
 
   (sql-find [flavor select-map]
-    (let [table (get select-map :table)
-          select-clause (convert-select (get select-map :select))
-          where-clause (convert-where (get select-map :where))
-          limit-clause (get select-map :limit)
-          offset-clause (get select-map :offset)
-          select-str (str "SELECT " select-clause " FROM " (table-name table)
-                       (when where-clause (str " WHERE " (first where-clause))) 
-                       (when limit-clause (str " LIMIT " limit-clause))
-                       (when offset-clause (str " OFFSET " offset-clause)))]
+    (let [select-str (str "SELECT " (select-clause select-map) " FROM " (table-name (get select-map :table))
+                       (where-clause select-map)
+                       (order-clause select-map)
+                       (limit-clause select-map)
+                       (offset-clause select-map))]
       (drift-db-protocol/execute-query flavor
-        (vec (concat [select-str] (when where-clause (rest where-clause)))))))
+        (vec (cons select-str (where-values select-map))))))
 
   (create-table [flavor table specs]
     (do
