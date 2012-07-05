@@ -1,7 +1,8 @@
 (ns drift-db-postgresql.test.flavor
   (:use drift-db-postgresql.flavor
         clojure.test)
-  (:require [drift-db.core :as drift-db]))
+  (:require [drift-db.core :as drift-db]
+            [drift-db-postgresql.test.column :as column-test]))
 
 (def dbname "drift_db_test")
 
@@ -46,24 +47,27 @@
         (is (get table-description :columns))
         (is (= (count (get table-description :columns)) (count expected-columns)))
         (doseq [column-pair (map #(list %1 %2) (get table-description :columns) (reverse expected-columns))]
-          (is (= (first column-pair) (second column-pair)))))
+          (column-test/assert-column-map (first column-pair) (second column-pair))))
       (is (drift-db/column-exists? :test :id))
       (is (drift-db/column-exists? :test "bar"))
 
       (drift-db/add-column :test
         (drift-db/string :added))
-      (is (= (drift-db/find-column :test :added)
-            { :length 255, :name :added, :type :string }))
+      (column-test/assert-column-map
+        (drift-db/find-column :test :added)
+        { :length 255, :name :added, :type :string })
 
       (drift-db/update-column :test
         :added (drift-db/string :altered-test))
-      (is (= (drift-db/find-column :test :altered-test)
-            { :length 255, :name :altered-test, :type :string }))
+      (column-test/assert-column-map 
+        (drift-db/find-column :test :altered-test)
+        { :length 255, :name :altered-test, :type :string })
 
       (drift-db/update-column :test
         :altered-test (drift-db/string :altered { :length 100 }))
-      (is (= (drift-db/find-column (drift-db/describe-table :test) :altered)
-            { :length 100, :name :altered, :type :string }))
+      (column-test/assert-column-map
+        (drift-db/find-column (drift-db/describe-table :test) :altered)
+        { :length 100, :name :altered, :type :string })
 
       (drift-db/drop-column :test :altered)
       (is (not (drift-db/column-exists? :test :altered)))

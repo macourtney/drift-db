@@ -1,16 +1,33 @@
 (ns drift-db.test.core
   (:use [drift-db.core])
-  (:use [clojure.test]))
+  (:use [clojure.test])
+  (:require [drift-db.column.column :as column]
+            [drift-db.spec :as spec]))
 
-(defn assert-column-spec
-  ([column-spec column-type column-name] (assert-column-spec column-spec column-type column-name {}))
-  ([column-spec column-type column-name mods]
-    (is (= column-spec
-          (merge
-            { :spec-type :column
-              :type column-type
-              :name column-name }
-            mods)))))
+(defn assert-spec-type [column-spec]
+  (is (= (spec/type column-spec) :column)))
+
+(defn assert-column-type [column-spec column-type]
+  (is (= (column/type column-spec) column-type)))
+
+(defn assert-column-name [column-spec column-name]
+  (is (= (column/name column-spec) column-name)))
+
+(defn assert-nullable? [column-spec nullable?]
+  (is (= (column/nullable? column-spec) nullable?)))
+
+(defn assert-primary-key? [column-spec primary-key?]
+  (if primary-key?
+    (is (column/primary-key? column-spec))
+    (is (not (column/primary-key? column-spec)))))
+
+(defn assert-auto-increment? [column-spec auto-increment?]
+  (is (= (column/auto-increment? column-spec) auto-increment?)))
+
+(defn assert-column-spec [column-spec column-type column-name]
+  (assert-spec-type column-spec)
+  (assert-column-type column-spec column-type)
+  (assert-column-name column-spec column-name))
 
 (defn assert-date-spec [date-spec column-name]
   (assert-column-spec date-spec :date column-name))
@@ -26,20 +43,14 @@
   (assert-date-time-spec (date-time :test) :test)
   (assert-date-time-spec (date-time :test { :fail :fail }) :test))
 
-(defn update-map 
-  ([map key value]
-    (if (and map key value)
-      (assoc map key value)
-      map))
-  ([map key value & others]
-    (apply update-map (update-map map key value) others)))
-
 (defn assert-integer-spec
   ([integer-spec column-name]
     (assert-column-spec integer-spec :integer column-name))
   ([integer-spec column-name not-null primary-key auto-increment]
-    (assert-column-spec integer-spec :integer column-name
-      (update-map {} :not-null not-null :primary-key primary-key :auto-increment auto-increment))))
+    (assert-column-spec integer-spec :integer column-name)
+    (assert-nullable? integer-spec (not not-null))
+    (assert-primary-key? integer-spec primary-key)
+    (assert-auto-increment? integer-spec auto-increment)))
 
 (deftest test-integer
   (assert-integer-spec (integer :test) :test)
@@ -53,7 +64,8 @@
   (is (= (column-name :foo) :foo))
   (is (= (column-name "foo") :foo))
   (is (= (column-name { :name :foo }) :foo))
-  (is (= (column-name { :name "foo" }) :foo)))
+  (is (= (column-name { :name "foo" }) :foo))
+  (is (= (column-name (integer :foo)) :foo)))
 
 (deftest test-column-name=
   (is (column-name= :foo :foo))
@@ -63,24 +75,32 @@
   (is (column-name= :foo { :name :foo }))
   (is (not (column-name= :foo { :name :bar })))
   (is (column-name= :foo { :name "foo" }))
-  (is (not (column-name= :foo { :name "bar" }))))
+  (is (not (column-name= :foo { :name "bar" })))
+  (is (column-name= (integer :foo) :foo))
+  (is (not (column-name= (integer :foo) :bar)))
+  (is (column-name= (integer :foo) (integer :foo)))
+  (is (not (column-name= (integer :foo) (integer :bar)))))
 
 (deftest test-columns
   (let [test-columns [{ :default "" :length 20 :not-null true :primary-key true :name :name :type :string }
                       { :name :created-at :type :date }
-                      { :name :edited-at :type :date-time }]]
+                      { :name :edited-at :type :date-time }
+                      (integer :foo)]]
     (is (= (columns { :name :test :columns test-columns }) test-columns))
     (is (nil? (columns nil)))))
 
 (deftest test-find-column
   (let [test-column-name :created-at
         test-column { :name test-column-name :type :date }
+        test-column2 (integer :foo)
         test-columns [{ :default "" :length 20 :not-null true :primary-key true :name :name :type :string }
                       test-column
-                      { :name :edited-at :type :date-time }]
+                      { :name :edited-at :type :date-time }
+                      test-column2]
         test-table { :name :test :columns test-columns }]
     (is (= (find-column test-table test-column-name) test-column))
-    (is (= (find-column test-table test-column) test-column))))
+    (is (= (find-column test-table test-column) test-column))
+    (is (= (find-column test-table :foo) test-column2))))
 
 (def test-column-metadata-1 { :auto-increment true, :default "(NEXT VALUE FOR PUBLIC.SYSTEM_SEQUENCE_D36D2960_AD38_447B_A6F4_4F202EE4E709)", :length 10, :not-null true, :primary-key true, :name :id, :type :integer })
 (def test-column-metadata-2 { :length 255, :name :text, :type :string })
@@ -122,6 +142,6 @@
   (is (nil? (column-primary-key nil))))
 
 (deftest test-belongs-to
-  (is (= (assoc (integer "test_id") :type :belongs-to) (belongs-to "test")))
-  (is (= (assoc (integer "test_id") :type :belongs-to) (belongs-to :test-id)))
-  (is (= (assoc (integer "test_id") :type :belongs-to) (belongs-to :test_id))))
+  (assert-column-spec (belongs-to "test") :belongs-to "test_id")
+  (assert-column-spec (belongs-to :test-id) :belongs-to "test_id")
+  (assert-column-spec (belongs-to :test-id) :belongs-to "test_id"))

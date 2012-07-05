@@ -2,6 +2,16 @@
   (:require [clojure.tools.logging :as logging]
             [clojure.tools.loading-utils :as loading-utils]
             [clojure.tools.string-utils :as string-utils]
+            [drift-db.column.belongs-to :as belongs-to-column]
+            [drift-db.column.column :as column-protocol]
+            [drift-db.column.date :as date-column]
+            [drift-db.column.date-time :as date-time-column]
+            [drift-db.column.decimal :as decimal-column]
+            [drift-db.column.identifier :as identifier-column]
+            [drift-db.column.integer :as integer-column]
+            [drift-db.column.string :as string-column]
+            [drift-db.column.text :as text-column]
+            [drift-db.column.time :as time-column]
             [drift-db.protocol :as flavor-protocol]))
 
 (def drift-db-flavor (atom nil))
@@ -134,9 +144,12 @@
   "Given a column name or column spec, this function returns the column name."
   [column]
   (keyword
-    (if (map? column)
-      (get column :name)
-      column)))
+    (cond
+      (map? column) (get column :name)
+      (keyword? column) (name column)
+      (string? column) column
+      (satisfies? column-protocol/Column column) (column-protocol/name column)
+      :else (throw (RuntimeException. (str "Don't know how to get the name for a column of type: " (type column)))))))
 
 (defn column-name=
   "Returns true if both of the given columns specs or names have equal column names."
@@ -179,9 +192,7 @@
    Curently supported values for mods: None"
   ([column] (date column {}))
   ([column mods]
-    { :spec-type :column
-      :type :date
-      :name column }))
+    (date-column/create-column column)))
 
 (defn date-time
   "Returns a new spec describing a date time with the given column and spec mods map. Use this method with the
@@ -190,15 +201,14 @@
    Curently supported values for mods: None"
   ([column] (date-time column {}))
   ([column mods]
-    { :spec-type :column
-      :type :date-time
-      :name column }))
+    (date-time-column/create-column column)))
 
 (defn integer
   "Returns a new spec describing an integer with the given column and spec mods map. Use this method with the 
    create-table method.
 
    Curently supported values for mods:
+       :length - The number of possible digits for this integer.
        :not-null - If the value of this key resolves to true, then add this column will be forced to be not null.
        :primary-key - If true, then make this column the primary key.
        :auto-increment - If true, then when no value is given, this integer will be automatically set to the next
@@ -206,17 +216,13 @@
   ([column]
     (integer column {}))
   ([column mods]
-    (merge
-      { :spec-type :column
-        :type :integer
-        :name column }
-      (select-keys mods [:length :not-null :primary-key :auto-increment]))))
+    (integer-column/create-column column mods)))
 
 (defn id
   "Returns a new spec describing the id for a table. Use this method with the create-table method."
   ([] (id :id))
   ([column]
-    (assoc (integer column { :not-null true :primary-key true }) :type :id)))
+    (identifier-column/create-column column)))
 
 (defn belongs-to
   "Returns a new spec describing a text with the given column and spec mods map. Use this method with the create-table
@@ -225,8 +231,7 @@
    Curently supported values for mods is exactly the same as integer."
   ([model] (belongs-to model {}))
   ([model mods]
-    (assoc (integer (string-utils/add-ending-if-absent (loading-utils/dashes-to-underscores (name model)) "_id") mods)
-           :type :belongs-to)))
+    (belongs-to-column/create-column model mods)))
 
 (defn decimal
   "Returns a new spec describing a decimal with the given column and spec mods map. Use this method with the 
@@ -239,11 +244,7 @@
        :scale - The scale."
   ([column] (decimal column {}))
   ([column mods]
-    (merge
-      { :spec-type :column
-        :type :decimal
-        :name column }
-      (select-keys mods [:not-null :primary-key :precision :scale]))))
+    (decimal-column/create-column column mods)))
 
 (defn string
   "Returns a new spec describing a string with the given column and spec mods map. Use this method with the
@@ -255,11 +256,7 @@
        :primary-key - If true, then make this column the primary key."
   ([column] (string column {}))
   ([column mods]
-    (merge
-      { :spec-type :column
-        :type :string
-        :name column }
-      (select-keys mods [:length :not-null :primary-key]))))
+    (string-column/create-column column mods)))
 
 (defn text
   "Returns a new spec describing a text with the given column and spec mods map. Use this method with the create-table
@@ -268,9 +265,7 @@
    Curently supported values for mods: None"
   ([column] (text column {}))
   ([column mods]
-    { :spec-type :column
-      :type :text
-      :name column }))
+    (text-column/create-column column)))
 
 (defn time-type
   "Returns a new spec describing a time with the given column and spec mods map. Use this method with the create-table
@@ -279,9 +274,7 @@
    Curently supported values for mods: None"
   ([column] (time-type column {}))
   ([column mods]
-    { :spec-type :column
-      :type :time
-      :name column }))
+    (time-column/create-column column)))
 
 (defn format-date
   "Returns the string value of the given date for use in the database."
