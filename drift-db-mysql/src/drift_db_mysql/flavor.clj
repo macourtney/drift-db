@@ -14,11 +14,11 @@
     ([connection-url] (create-datasource connection-url nil nil))
     ([connection-url username password]
       (let [mysql-datasource (new MysqlDataSource)]
-      (. mysql-datasource setURL connection-url)
-      (if (and username password)
-        (. mysql-datasource setUser username)
-        (. mysql-datasource setPassword password))
-      mysql-datasource)))
+        (.setURL mysql-datasource connection-url)
+        (when (and username password)
+          (.setUser mysql-datasource username)
+          (.setPassword mysql-datasource password))
+        mysql-datasource)))
 
 (defn
 #^{:doc "Returns the given key or string as valid table name. Basically turns 
