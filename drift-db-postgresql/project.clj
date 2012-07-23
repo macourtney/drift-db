@@ -1,4 +1,4 @@
-(defproject drift-db-postgresql "1.1.1-SNAPSHOT"
+(defproject org.drift-db/drift-db-postgresql "1.1.1-SNAPSHOT"
   :description "This is the postgresql implementation of the drift-db protocol."
   :dependencies [[clojure-tools "1.1.1"]
                  [org.clojure/clojure "1.2.1"]
