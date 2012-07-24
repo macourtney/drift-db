@@ -34,6 +34,10 @@
   (assert-nullable? column (not (:not-null column-map)))
   (assert-primary-key? column (:primary-key column-map)))
 
+(deftest test-column-name
+  (is (= (column-name :test) "\"test\""))
+  (is (= (column-name (drift-db/string :test)) "\"test\"")))
+
 (deftest test-parse-column
   (assert-column-map (parse-column { :default "NULL" :key "PRI" :is-nullable "NO" :data-type "character varying" :column-name "NAME" :character-maximum-length 20 })
                      { :length 20, :not-null true, :primary-key true, :name :name, :type :string })

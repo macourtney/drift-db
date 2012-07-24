@@ -29,7 +29,9 @@
 #^{:doc "Returns the given key or string as valid column name. Basically turns 
 any keyword into a string, and replaces dashes with underscores."}
   column-name [column]
-  (conjure-loading-utils/dashes-to-underscores (conjure-string-utils/str-keyword column)))
+  (if (satisfies? column-protocol/Column column)
+    (column-name (column-protocol/name column))
+    (conjure-loading-utils/dashes-to-underscores (name column))))
 
 (defn
 #^{ :doc "Returns the given valid column name as a keyword. Basically turns 
