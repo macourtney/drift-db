@@ -30,7 +30,8 @@
         (drift-db/date-time :edited-at)
         (drift-db/decimal :bar)
         (drift-db/text :description)
-        (drift-db/time-type :deleted-at))
+        (drift-db/time-type :deleted-at)
+        (drift-db/boolean :foo))
       (is (drift-db/table-exists? :test))
       (let [table-description (drift-db/describe-table :test)
             expected-columns [{ :length 11 :not-null true :primary-key true :name :id :type :integer :auto-increment true }
@@ -39,7 +40,8 @@
                               { :name :edited-at :type :date-time }
                               { :scale 6 :precision 20 :name :bar :type :decimal }
                               { :name :description :type :text }
-                              { :name :deleted-at :type :time }]]
+                              { :name :deleted-at :type :time }
+                              { :name :foo :type :integer :length 1 }]]
         (is (= (get table-description :name) :test))
         (is (get table-description :columns))
         (is (= (count (get table-description :columns)) (count expected-columns)))

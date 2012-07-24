@@ -15,6 +15,7 @@
             [drift-db.core :as drift-db]
             [drift-db.spec :as spec-protocol])
   (:import [drift_db.column.belongs_to BelongsToColumn]
+           [drift_db.column.boolean BooleanColumn]
            [drift_db.column.date DateColumn]
            [drift_db.column.date_time DateTimeColumn]
            [drift_db.column.decimal DecimalColumn]
@@ -71,15 +72,24 @@ any string into a keyword, and replaces underscores with dashes." }
 (defn integer-db-type [column-spec]
   (let [length (or (column-protocol/length column-spec) 11)]
     (str
-      (if (> length 11)
-        "BIGINT"
-        "INT")
+      (cond
+        (< length 3) "TINYINT"
+        (> length 11) "BIGINT"
+        :else "INT")
       "(" length ")")))
 
 (defprotocol DBType
   (db-type [column-spec] "Returns the type for the given column spec."))
 
 (extend-protocol DBType
+  BelongsToColumn
+    (db-type [column-spec]
+      (integer-db-type column-spec))
+
+  BooleanColumn
+    (db-type [column-spec]
+      "BOOLEAN")
+
   DateColumn
     (db-type [column-spec]
       "DATE")
@@ -88,6 +98,10 @@ any string into a keyword, and replaces underscores with dashes." }
     (db-type [column-spec]
       "DATETIME")
 
+  DecimalColumn
+    (db-type [column-spec]
+      (str "DECIMAL(" (or (column-protocol/precision column-spec) 20) "," (or (column-protocol/scale column-spec) 6) ")"))
+
   IntegerColumn
     (db-type [column-spec]
       (integer-db-type column-spec))
@@ -95,14 +109,6 @@ any string into a keyword, and replaces underscores with dashes." }
   IdentifierColumn
     (db-type [column-spec]
       (integer-db-type column-spec))
-
-  BelongsToColumn
-    (db-type [column-spec]
-      (integer-db-type column-spec))
-
-  DecimalColumn
-    (db-type [column-spec]
-      (str "DECIMAL(" (or (column-protocol/precision column-spec) 20) "," (or (column-protocol/scale column-spec) 6) ")"))
 
   StringColumn
     (db-type [column-spec]
@@ -133,7 +139,7 @@ any string into a keyword, and replaces underscores with dashes." }
 
 (def date-regex #"date")
 (def date-time-regex #"datetime")
-(def integer-regex #"int\((\d+)\)")
+(def integer-regex #"(int|tinyint)\((\d+)\)")
 (def decimal-regex #"decimal\((\d+)(,\s*(\d+))?\)")
 (def varchar-regex #"varchar\((\d+)\)")
 (def text-regex #"text")
@@ -169,7 +175,8 @@ any string into a keyword, and replaces underscores with dashes." }
       (is-decimal-column column-type) :decimal
       (is-string-column column-type) :string
       (is-text-column column-type) :text
-      (is-time-column column-type) :time)))
+      (is-time-column column-type) :time
+      :else (throw (RuntimeException. (str "Unknown column type: " column-type))))))
 
 (defn parse-length-with-regex
   ([column-type regex] (parse-length-with-regex column-type regex 1))
@@ -179,7 +186,7 @@ any string into a keyword, and replaces underscores with dashes." }
         (Integer/parseInt (nth (re-groups matcher) length-group))))))
 
 (defn parse-integer-length [column-type]
-  (parse-length-with-regex column-type integer-regex))
+  (parse-length-with-regex column-type integer-regex 2))
 
 (defn parse-string-length [column-type]
   (parse-length-with-regex column-type varchar-regex))
@@ -263,6 +270,9 @@ any string into a keyword, and replaces underscores with dashes." }
 
 (defmethod create-column :time [column-map]
   (drift-db/time-type (get column-map :name)))
+
+(defmethod create-column :default [column-map]
+  (throw (RuntimeException. (str "Cannot create a column for: " column-map))))
 
 (defn parse-column [column-desc]
   (create-column
