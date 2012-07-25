@@ -215,7 +215,10 @@ any keyword into a string, and replaces dashes with underscores."}
           (drift-db-protocol/execute-commands flavor
             [(str "ALTER TABLE " (table-name table) " RENAME " old-column-name " TO " column-name)]))
         (drift-db-protocol/execute-commands flavor
-          [(str "ALTER TABLE " (table-name table) " ALTER COLUMN " column-name " TYPE " (clojure-str/join " " (column/type-vec spec)))]))))
+          [(str "ALTER TABLE " (table-name table) " ALTER COLUMN " column-name " TYPE " (column/db-type spec))
+           (if (column/nullable? spec)
+             (str "ALTER TABLE " (table-name table) " ALTER COLUMN " column-name " DROP NOT NULL")
+             (str "ALTER TABLE " (table-name table) " ALTER COLUMN " column-name " SET NOT NULL"))]))))
 
   (format-date [flavor date]
     (. (new SimpleDateFormat "yyyy-MM-dd") format date))

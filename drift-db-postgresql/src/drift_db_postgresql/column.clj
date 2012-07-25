@@ -50,17 +50,29 @@ any string into a keyword, and replaces underscores with dashes." }
   (when column-name
     (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase (name column-name))))))
 
+(defn nullable?
+  "Returns true if the given columns spec is nullable which means not-null is false or not set or auto-increment is
+   true."
+  [column-spec]
+  (or (column-protocol/nullable? column-spec) (column-protocol/auto-increment? column-spec)))
+
 (defn
 #^{:doc "Returns the not null spec vector from the given mods map."}
   not-null-mod [column-spec]
-  (if (or (column-protocol/nullable? column-spec) (column-protocol/auto-increment? column-spec))
+  (if (nullable? column-spec)
     []
     ["NOT NULL"]))
+
+(defn primary-key?
+  "Returns true if the given column-spec should be a primary key which means primary-key is true and auto-increment is
+   false."
+  [column-spec]
+  (and (column-protocol/primary-key? column-spec) (not (column-protocol/auto-increment? column-spec))))
 
 (defn
 #^{:doc "Returns the primary key spec vector from the given mods map."}
   primary-key-mod [column-spec]
-  (if (and (column-protocol/primary-key? column-spec) (not (column-protocol/auto-increment? column-spec)))
+  (if (primary-key? column-spec)
     ["PRIMARY KEY"]
     []))
 

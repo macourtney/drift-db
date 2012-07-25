@@ -63,10 +63,10 @@
         { :length 255, :name :altered-test, :type :string })
 
       (drift-db/update-column :test
-        :altered-test (drift-db/string :altered { :length 100 }))
+        :altered-test (drift-db/string :altered { :length 100 :not-null true }))
       (column-test/assert-column-map
         (drift-db/find-column (drift-db/describe-table :test) :altered)
-        { :length 100, :name :altered, :type :string })
+        { :type :string, :name :altered, :length 100, :not-null true })
 
       (drift-db/drop-column :test :altered)
       (is (not (drift-db/column-exists? :test :altered)))
