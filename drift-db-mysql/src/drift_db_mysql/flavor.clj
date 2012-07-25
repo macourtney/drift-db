@@ -4,7 +4,7 @@
             [clojure.tools.logging :as logging]
             [clojure.string :as clojure-str]
             [drift-db.protocol :as drift-db-protocol]
-            [drift-db-mysql.column :as mysql-column])
+            [drift-db-mysql.column :as column])
   (:import [com.mysql.jdbc.jdbc2.optional MysqlDataSource]
            [java.text SimpleDateFormat]))
 
@@ -24,19 +24,19 @@
 #^{:doc "Returns the given key or string as valid table name. Basically turns 
 any keyword into a string, and replaces dashes with underscores."}
   table-name [table]
-  (mysql-column/backquote (conjure-loading-utils/dashes-to-underscores (name table))))
+  (column/backquote (conjure-loading-utils/dashes-to-underscores (name table))))
 
 (defn-
 #^{ :doc "Cleans up the given row, loading any clobs into memory." }
   clean-row [row]
   (reduce 
     (fn [new-map pair] 
-        (assoc new-map (mysql-column/column-name-key (first pair)) (second pair)))
+        (assoc new-map (column/column-name-key (first pair)) (second pair)))
     {} 
     row))
 
 (defn pair-to-equals [pair]
-  (str "(" (mysql-column/column-name (first pair)) " = ?)"))
+  (str "(" (column/column-name (first pair)) " = ?)"))
 
 (defn record-to-and-call [record]
   (cons (clojure-str/join " and " (map pair-to-equals record)) (vals record)))
@@ -83,7 +83,7 @@ any keyword into a string, and replaces dashes with underscores."}
     (str " OFFSET " clause)))
 
 (defn map-order-clause [clause]
-  (str (mysql-column/column-name (get clause :expression))
+  (str (column/column-name (get clause :expression))
     (when-let [direction (get clause :direction)]
       (let [direction (clojure-str/lower-case (name direction))]
         (if (or (= direction "ascending") (= direction "asc"))
@@ -96,7 +96,7 @@ any keyword into a string, and replaces dashes with underscores."}
   (cond
     (map? clause) (map-order-clause clause)
     (or (vector? clause) (seq? clause)) (clojure-str/join ", " (map order-str clause))
-    (keyword? clause) (mysql-column/column-name clause)
+    (keyword? clause) (column/column-name clause)
     :else clause))
 
 (defn order-clause
@@ -151,7 +151,7 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "Create table: " table " with specs: " specs))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/create-table (table-name table) (map mysql-column/spec-vec specs)))))
+        (apply sql/create-table (table-name table) (map column/spec-vec specs)))))
 
   (drop-table [flavor table]
     (do
@@ -169,24 +169,24 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "Describe table: " table))
       { :name table
-        :columns (map mysql-column/parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))]))}))
+        :columns (map column/parse-column (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))]))}))
 
   (add-column [flavor table spec]
     (drift-db-protocol/execute-commands flavor
-      [(str "ALTER TABLE " (table-name table) " ADD " (mysql-column/spec-str spec))]))
+      [(str "ALTER TABLE " (table-name table) " ADD " (column/spec-str spec))]))
   
-  (drop-column [flavor table column]
+  (drop-column [flavor table column-spec]
     (drift-db-protocol/execute-commands flavor
-      [(str "ALTER TABLE " (table-name table) " DROP COLUMN " (mysql-column/column-name column))]))
+      [(str "ALTER TABLE " (table-name table) " DROP COLUMN " (column/column-name column-spec))]))
 
   (update-column [flavor table column spec]
-    (when-let [old-column-name (mysql-column/column-name column)]
-      (let [column-name (or (mysql-column/spec-column-name spec) old-column-name)]
+    (when-let [old-column-name (column/column-name column)]
+      (let [column-name (or (column/spec-column-name spec) old-column-name)]
         (if (not (= old-column-name column-name))
           (drift-db-protocol/execute-commands flavor
-            [(str "ALTER TABLE " (table-name table) " CHANGE COLUMN " old-column-name " " (mysql-column/spec-str spec))])
+            [(str "ALTER TABLE " (table-name table) " CHANGE COLUMN " old-column-name " " (column/spec-str spec))])
           (drift-db-protocol/execute-commands flavor
-            [(str "ALTER TABLE " (table-name table) " MODIFY COLUMN " (mysql-column/spec-str (assoc spec :name column-name)))])))))
+            [(str "ALTER TABLE " (table-name table) " MODIFY COLUMN " (column/spec-str (assoc spec :name column-name)))])))))
 
   (format-date [flavor date]
     (. (new SimpleDateFormat "yyyy-MM-dd") format date))
@@ -213,7 +213,19 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "Update table: " table " where: " where-or-record " record: " record))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/update-values (table-name table) (convert-where where-or-record) record)))))
+        (sql/update-values (table-name table) (convert-where where-or-record) record))))
+
+  (create-index [flavor table index-name mods]
+    (logging/debug (str "Adding index: " index-name " to table: " table " with mods: " mods))
+    (drift-db-protocol/execute-commands flavor
+      [(str "CREATE " (when (:unique? mods) "UNIQUE ") "INDEX " (column/db-symbol index-name)
+            (when (= (clojure-str/lower-case (name (:method mods))) "hash") " USING HASH") " ON "
+            (table-name table) "(" (clojure-str/join "," (map column/column-name (:columns mods))) ")")]))
+
+  (drop-index [flavor table index-name]
+    (logging/debug (str "Dropping index: " index-name " on table: " table))
+    (drift-db-protocol/execute-commands flavor
+      [(str "DROP INDEX " (column/db-symbol index-name) " ON " (table-name table))])))
 
 (defn mysql-flavor
   ([username password dbname] (mysql-flavor username password dbname "localhost"))

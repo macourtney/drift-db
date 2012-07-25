@@ -25,13 +25,18 @@
            [drift_db.column.text TextColumn]
            [drift_db.column.time TimeColumn]))
 
+(defn db-symbol
+  "Converts the given symbol-name which can be a string or keyword, and converts it to a proper database symbol."
+  [symbol-name]
+  (conjure-loading-utils/dashes-to-underscores (name symbol-name)))
+
 (defn
 #^{:doc "Returns the given key or string as valid column name. Basically turns 
 any keyword into a string, and replaces dashes with underscores."}
   column-name [column]
   (if (satisfies? column-protocol/Column column)
     (column-name (column-protocol/name column))
-    (conjure-loading-utils/dashes-to-underscores (name column))))
+    (db-symbol column)))
 
 (defn
 #^{ :doc "Returns the given valid column name as a keyword. Basically turns 

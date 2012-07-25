@@ -232,7 +232,18 @@ dashes with underscores."}
     (do
       (logging/debug (str "Update table: " table " where: " where-or-record " record: " record))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/update-values (table-name table) (convert-where where-or-record) (convert-record record))))))
+        (sql/update-values (table-name table) (convert-where where-or-record) (convert-record record)))))
+
+  (create-index [flavor table index-name mods]
+    (logging/debug (str "Adding index: " index-name " to table: " table " with mods: " mods))
+    (drift-db-protocol/execute-commands flavor
+      [(str "CREATE " (when (:unique? mods) "UNIQUE ") "INDEX IF NOT EXISTS " (h2-column/db-symbol index-name) " ON "
+            (table-name table) "(" (clojure-str/join "," (map h2-column/column-name (:columns mods))) ")")]))
+
+  (drop-index [flavor table index-name]
+    (logging/debug (str "Dropping index: " index-name " on table: " table))
+    (drift-db-protocol/execute-commands flavor
+      [(str "DROP INDEX IF EXISTS " (h2-column/db-symbol index-name))])))
 
 (defn h2-flavor
   ([dbname] (h2-flavor dbname nil))

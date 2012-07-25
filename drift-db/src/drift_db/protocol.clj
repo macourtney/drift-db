@@ -65,4 +65,16 @@
 
       table - The name of the table to update.
       where-or-record - The where clause or a prototype record.
-      record - A map from strings or keywords (identifying columns) to updated values."))
+      record - A map from strings or keywords (identifying columns) to updated values.")
+
+  (create-index [flavor table index-name mods]
+    "Creates an index on the given table using the given columns specified with the given spec. Supported keys in
+     mods is:
+
+       columns - The columns to use in the index.
+       unique? - If true, then the index should be unique. Optional
+       method - The name of the method to use. Optional, uses the database's default if missing. Supported values: btree, hash
+       direction - The direction of the index order. Either ascending or descending. Optional.
+       nulls - Where the nulls should be in the index order. Either first or last. Optional.")
+  
+  (drop-index [flavor table index-name] "Drops the given index."))

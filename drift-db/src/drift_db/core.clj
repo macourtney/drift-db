@@ -325,3 +325,19 @@
   [table where-or-record record]
   (flavor-protocol/update @drift-db-flavor table where-or-record record))
 
+(defn create-index
+  "Creates an index on the given table using the given columns specified with the given spec. Supported keys in
+     mods is:
+
+       columns - The columns to use in the index.
+       unique? - If true, then the index should be unique. Optional
+       method - The name of the method to use. Optional, uses the database's default if missing. Supported values: btree, hash
+       direction - The direction of the index order. Either ascending or descending. Optional.
+       nulls - Where the nulls should be in the index order. Either first or last. Optional."
+  [table index-name mods]
+  (flavor-protocol/create-index @drift-db-flavor table index-name mods))
+
+(defn drop-index
+  "Drops the given index."
+  [table index-name]
+  (flavor-protocol/drop-index @drift-db-flavor table index-name))

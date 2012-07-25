@@ -74,6 +74,9 @@
       (drift-db/drop-column-if-exists :test :bar)
       (is (not (drift-db/column-exists? :test :bar)))
 
+      (drift-db/create-index :test :name-index { :columns [:name] :unique? true })
+      (drift-db/drop-index :test :name-index)
+
       (finally 
         (drift-db/drop-table-if-exists :test)
         (is (not (drift-db/table-exists? :test)))))))

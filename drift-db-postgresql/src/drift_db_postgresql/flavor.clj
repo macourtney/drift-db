@@ -4,7 +4,7 @@
             [clojure.tools.logging :as logging]
             [clojure.string :as clojure-str]
             [drift-db.protocol :as drift-db-protocol]
-            [drift-db-postgresql.column :as postgresql-column])
+            [drift-db-postgresql.column :as column])
   (:import [org.postgresql.ds PGSimpleDataSource]
            [java.text SimpleDateFormat]))
 
@@ -26,19 +26,19 @@
 #^{:doc "Returns the given key or string as valid table name. Basically turns 
 any keyword into a string, and replaces dashes with underscores."}
   table-name [table]
-  (postgresql-column/identifier-quote (conjure-loading-utils/dashes-to-underscores (name table))))
+  (column/identifier-quote (conjure-loading-utils/dashes-to-underscores (name table))))
 
 (defn-
 #^{ :doc "Cleans up the given row, loading any clobs into memory." }
   clean-row [row]
   (reduce 
     (fn [new-map pair] 
-        (assoc new-map (postgresql-column/column-name-key (first pair)) (second pair)))
+        (assoc new-map (column/column-name-key (first pair)) (second pair)))
     {} 
     row))
 
 (defn pair-to-equals [pair]
-  (str "(" (postgresql-column/column-name (first pair)) " = ?)"))
+  (str "(" (column/column-name (first pair)) " = ?)"))
 
 (defn record-to-and-call [record]
   (cons (clojure-str/join " and " (map pair-to-equals record)) (vals record)))
@@ -84,21 +84,31 @@ any keyword into a string, and replaces dashes with underscores."}
   (when-let [clause (get select-map :offset)]
     (str " OFFSET " clause)))
 
+(defn lower-case [named]
+  (when named
+    (clojure-str/lower-case (name named))))
+
+(defn nulls [mods]
+  (when-let [nulls (get mods :nulls)]
+    (str " NULLS " (if (= (lower-case nulls) "first") "FIRST" "LAST"))))
+
+(defn direction [mods]
+  (when-let [direction (get mods :direction)]
+    (let [direction (lower-case direction)]
+      (if (or (= direction "ascending") (= direction "asc"))
+        " ASC"
+        " DESC"))))
+
 (defn map-order-clause [clause]
-  (str (postgresql-column/column-name (get clause :expression))
-    (when-let [direction (get clause :direction)]
-      (let [direction (clojure-str/lower-case (name direction))]
-        (if (or (= direction "ascending") (= direction "asc"))
-          " ASC"
-          " DESC")))
-    (when-let [nulls (get clause :nulls)]
-      (str " NULLS " (if (= (clojure-str/lower-case (name nulls)) "first") "FIRST" "LAST")))))
+  (str (column/column-name (get clause :expression))
+    (direction clause)
+    (nulls clause)))
 
 (defn order-str [clause]
   (cond
     (map? clause) (map-order-clause clause)
     (or (vector? clause) (seq? clause)) (clojure-str/join ", " (map order-str clause))
-    (keyword? clause) (postgresql-column/column-name clause)
+    (keyword? clause) (column/column-name clause)
     :else clause))
 
 (defn order-clause
@@ -106,6 +116,24 @@ any keyword into a string, and replaces dashes with underscores."}
   [select-map]
   (when-let [clause (get select-map :order-by)]
     (str " ORDER BY " (order-str clause))))
+
+(defn index-column [column mods]
+  (str (column/column-name column)
+       (direction mods)
+       (nulls mods)))
+
+(defn index-columns [mods]
+  (clojure-str/join "," (map #(index-column % mods) (:columns mods))))
+
+(defn index-method [mods]
+  (when-let [method (lower-case (:method mods))]
+    (str " USING "
+         (condp = method
+           "btree" "BTREE"
+           "hash" "HASH"
+           "gist" "GIST"
+           "gin" "GIN"
+           (throw (RuntimeException. (str "Unknown method: " method)))))))
 
 (deftype PostgresqlFlavor [username password dbname host]
   drift-db-protocol/Flavor
@@ -150,7 +178,7 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "Create table: " table " with specs: " specs))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/create-table (table-name table) (map postgresql-column/spec-vec specs)))))
+        (apply sql/create-table (table-name table) (map column/spec-vec specs)))))
 
   (drop-table [flavor table]
     (do
@@ -168,26 +196,26 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "Describe table: " table))
       { :name table
-        :columns (map postgresql-column/parse-column 
+        :columns (map column/parse-column 
                       (drift-db-protocol/execute-query flavor 
                         [(str "SELECT column_name, data_type, character_maximum_length, numeric_scale, numeric_precision, is_nullable, column_default FROM information_schema.columns WHERE table_name = '" (name table) "';")]))})) ; 
 
   (add-column [flavor table spec]
     (drift-db-protocol/execute-commands flavor
-      [(str "ALTER TABLE " (table-name table) " ADD " (postgresql-column/spec-str spec))]))
+      [(str "ALTER TABLE " (table-name table) " ADD " (column/spec-str spec))]))
   
-  (drop-column [flavor table column]
+  (drop-column [flavor table column-spec]
     (drift-db-protocol/execute-commands flavor
-      [(str "ALTER TABLE " (table-name table) " DROP COLUMN " (postgresql-column/column-name column))]))
+      [(str "ALTER TABLE " (table-name table) " DROP COLUMN " (column/column-name column-spec))]))
 
-  (update-column [flavor table column spec]
-    (when-let [old-column-name (postgresql-column/column-name column)]
-      (let [column-name (or (postgresql-column/spec-column-name spec) old-column-name)]
+  (update-column [flavor table column-name spec]
+    (when-let [old-column-name (column/column-name column-name)]
+      (let [column-name (or (column/spec-column-name spec) old-column-name)]
         (when (not (= old-column-name column-name))
           (drift-db-protocol/execute-commands flavor
             [(str "ALTER TABLE " (table-name table) " RENAME " old-column-name " TO " column-name)]))
         (drift-db-protocol/execute-commands flavor
-          [(str "ALTER TABLE " (table-name table) " ALTER COLUMN " column-name " TYPE " (clojure-str/join " " (postgresql-column/type-vec spec)))]))))
+          [(str "ALTER TABLE " (table-name table) " ALTER COLUMN " column-name " TYPE " (clojure-str/join " " (column/type-vec spec)))]))))
 
   (format-date [flavor date]
     (. (new SimpleDateFormat "yyyy-MM-dd") format date))
@@ -214,7 +242,19 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "Update table: " table " where: " where-or-record " record: " record))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/update-values (table-name table) (convert-where where-or-record) record)))))
+        (sql/update-values (table-name table) (convert-where where-or-record) record))))
+
+  (create-index [flavor table index-name mods]
+    (logging/debug (str "Adding index: " index-name " to table: " table " with mods: " mods))
+    (drift-db-protocol/execute-commands flavor
+      [(str "CREATE " (when (:unique? mods) "UNIQUE ") "INDEX " (column/db-symbol index-name)
+            " ON " (table-name table) (index-method mods)
+            " (" (index-columns mods) ")")]))
+
+  (drop-index [flavor table index-name]
+    (logging/debug (str "Dropping index: " index-name " on table: " table))
+    (drift-db-protocol/execute-commands flavor
+      [(str "DROP INDEX IF EXISTS " (column/db-symbol index-name))])))
 
 (defn postgresql-flavor
   ([username password dbname] (postgresql-flavor username password dbname "localhost"))
