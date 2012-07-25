@@ -152,7 +152,7 @@ Example:
 
 The above example returns a true value if the column "added" is in the table "test".
 
-### Adding and dropping a column
+### Adding, updating and dropping a column
 
 You can add a column to an already existing table using the `add-column` function.
 
@@ -184,6 +184,16 @@ Example:
 ```
 
 The above example drops the "added" column from the "test" table if it exists. If it doesn't exist, the function does nothing.
+
+You can update and existing column using `update-column`.
+
+Example:
+
+```clojure
+  (update-column :test :added (string :added_again { :length 20 }))
+```
+
+The above example updates the added column, changing the name to added_again and restricting the length to 20.
 
 ### Create, Read, Update and Delete rows.
 
@@ -282,6 +292,29 @@ Example
 ```
 
 The above example selects all columns from test where name is equal to "blah". `execute-query` allows you to run sql statements directly on your database, the exact syntax for your database may differ.
+
+### Creating and Dropping indexes.
+
+To create an index use the `create-index` function.
+
+Example:
+
+```clojure
+  (create-index :test :added_index { :columns [:added] })
+```
+
+The above example creates the added_index on the test table using the added column. Note, the :columns key in the mods
+map is required. 
+
+To drop an index use the `drop-index` function.
+
+Example:
+
+```clojure
+  (drop-index :test :added_index)
+```
+
+The above example drops the added_index index of the table test.
 
 ## License
 
