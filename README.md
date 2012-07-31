@@ -42,6 +42,25 @@ Before you can do anything, you must let drift-db know which database flavor to 
   (init-flavor flavor)
 ```
 
+### Using drift db with drift
+
+To use drift db with drift you need to update your config/migrate_config.clj file to look something like this:
+
+```clojure
+(ns config.migrate-config
+  (:require [drift-db.core :as drift-db]
+            [drift-db.migrate :as drift-db-migrate]))
+
+(defn migrate-config []
+  { :directory "/src/db/migrate"
+    :init #(drift-db/init-flavor <drift db flavor>)
+    :current-version drift-db-migrate/current-version
+    :update-version drift-db-migrate/update-version
+    :ns-content "\n  (:use drift-db.core)" })
+```
+
+In the above example, you'll need to replace <drift db flavor> with an instance of the drift db flavor you want to use with your project.
+
 ### Creating a table
 
 To create a table use the `create-table`. Create table takes the name of the table to create and any number of specs for the table. Currently only column specs are supported.
