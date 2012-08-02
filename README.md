@@ -77,6 +77,7 @@ The above call to `create-table` creates a table with the name "test" and the co
 
 Drift db supports the following column functions:
 
+  `boolean`
   `date`
   `date-time`
   `integer`
