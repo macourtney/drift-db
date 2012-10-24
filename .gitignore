@@ -6,3 +6,4 @@ pom.xml
 .classpath
 .project
 .lein-deps-sum
+target/
