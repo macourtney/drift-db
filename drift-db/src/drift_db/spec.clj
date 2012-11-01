@@ -1,4 +1,5 @@
 (ns drift-db.spec
+  (:refer-clojure :exclude [type])
   (:require [clojure.tools.logging :as logging]))
 
 (defprotocol Spec
