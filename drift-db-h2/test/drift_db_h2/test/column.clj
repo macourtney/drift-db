@@ -59,7 +59,7 @@
   (is (= (db-type (drift-db/date :created-at)) "DATE"))
   (is (= (db-type (drift-db/date-time :edited-at)) "DATETIME"))
   (is (= (db-type (drift-db/integer :foo { :length 9 })) "INT"))
-  (is (= (db-type (drift-db/id :id)) "INT"))
+  (is (= (db-type (drift-db/id :id)) "IDENTITY"))
   (is (= (db-type (drift-db/belongs-to :parent { :length 20 })) "BIGINT"))
   (is (= (db-type (drift-db/decimal :bar { :precision 5 :scale 10 })) "DECIMAL(5,10)"))
   (is (= (db-type (drift-db/text :notes)) "TEXT"))
@@ -67,7 +67,7 @@
 
 (deftest test-type-vec
   (is (= (type-vec (drift-db/integer :foo { :length 9 })) ["INT"]))
-  (is (= (type-vec (drift-db/id :id)) ["INT" "NOT NULL" "AUTO_INCREMENT" "PRIMARY KEY"])))
+  (is (= (type-vec (drift-db/id :id)) ["IDENTITY" "NOT NULL" "PRIMARY KEY"])))
 
 (deftest test-column-spec-vec
   (is (= (column-spec-vec (drift-db/integer :foo)) ["foo" "INT"])))

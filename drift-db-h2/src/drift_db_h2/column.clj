@@ -48,7 +48,7 @@ any string into a keyword, and replaces underscores with dashes." }
 (defn
 #^{:doc "Returns the primary key spec vector from the given mods map."}
   auto-increment-mod [column-spec]
-  (if (column-protocol/auto-increment? column-spec)
+  (if (and (not (instance? IdentifierColumn column-spec)) (column-protocol/auto-increment? column-spec))
     ["AUTO_INCREMENT"]
     []))
 
@@ -102,7 +102,7 @@ any string into a keyword, and replaces underscores with dashes." }
 
   IdentifierColumn
     (db-type [column-spec]
-      (integer-db-type column-spec))
+      "IDENTITY")
 
   DecimalColumn
     (db-type [column-spec]
