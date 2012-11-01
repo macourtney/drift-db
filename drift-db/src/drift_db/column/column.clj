@@ -1,4 +1,5 @@
 (ns drift-db.column.column
+  (:refer-clojure :exclude [name type])
   (:require [clojure.tools.logging :as logging]))
 
 (defprotocol Column
