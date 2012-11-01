@@ -1,4 +1,5 @@
 (ns drift-db.core
+  (:refer-clojure :exclude [boolean])
   (:require [clojure.tools.logging :as logging]
             [clojure.tools.loading-utils :as loading-utils]
             [clojure.tools.string-utils :as string-utils]
