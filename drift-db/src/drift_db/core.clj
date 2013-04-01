@@ -1,10 +1,11 @@
 (ns drift-db.core
-  (:refer-clojure :exclude [boolean])
+  (:refer-clojure :exclude [boolean byte-array])
   (:require [clojure.tools.logging :as logging]
             [clojure.tools.loading-utils :as loading-utils]
             [clojure.tools.string-utils :as string-utils]
             [drift-db.column.belongs-to :as belongs-to-column]
             [drift-db.column.boolean :as boolean-column]
+            [drift-db.column.byte-array :as byte-array]
             [drift-db.column.column :as column-protocol]
             [drift-db.column.date :as date-column]
             [drift-db.column.date-time :as date-time-column]
@@ -286,6 +287,15 @@
   ([column] (boolean column {}))
   ([column mods]
     (boolean-column/create-column column)))
+
+(defn byte-array
+  "Returns a new spec describing a byte array with the given column and spec mods map. Use this method with the
+   create-table method.
+
+   Curently supported values for mods: None"
+  ([column] (byte-array column {}))
+  ([column mods]
+    (byte-array/create-column column)))
 
 (defn format-date
   "Returns the string value of the given date for use in the database."

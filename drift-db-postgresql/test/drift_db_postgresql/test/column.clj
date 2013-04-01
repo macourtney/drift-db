@@ -39,6 +39,10 @@
   (is (= (column-name (drift-db/string :test)) "\"test\"")))
 
 (deftest test-parse-column
+  (assert-column-map (parse-column { :default "NULL" :key "" :data-type "boolean" :column-name "is_active" })
+                     { :name :is-active, :type :boolean })
+  (assert-column-map (parse-column { :default "NULL" :key "" :data-type "bytea" :column-name "data" })
+                     { :name :data, :type :byte-array })
   (assert-column-map (parse-column { :default "NULL" :key "PRI" :is-nullable "NO" :data-type "character varying" :column-name "NAME" :character-maximum-length 20 })
                      { :length 20, :not-null true, :primary-key true, :name :name, :type :string })
   (assert-column-map (parse-column { :default "NULL" :key "" :data-type "date" :column-name "CREATED_AT" })
@@ -55,6 +59,8 @@
                      { :name :deleted-at, :type :time }))
 
 (deftest test-db-type
+  (is (= (db-type (drift-db/boolean :name)) "BOOLEAN"))
+  (is (= (db-type (drift-db/byte-array :name)) "BYTEA"))
   (is (= (db-type (drift-db/string :name { :length 20 })) "VARCHAR(20)"))
   (is (= (db-type (drift-db/date :created-at)) "DATE"))
   (is (= (db-type (drift-db/date-time :edited-at)) "TIMESTAMP"))

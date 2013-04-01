@@ -1,4 +1,5 @@
 (ns drift-db.test.core
+  (:refer-clojure :exclude [boolean byte-array])
   (:use [drift-db.core])
   (:use [clojure.test])
   (:require [drift-db.column.column :as column]
