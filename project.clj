@@ -1,4 +1,4 @@
-(defproject org.drift-db/drift-db-root "1.1.5"
+(defproject org.drift-db/drift-db-root "1.1.6-SNAPSHOT"
   :description "This is the root project for drift-db"
   
   ; To run use 'lein sub <task>'
