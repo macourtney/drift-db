@@ -1,4 +1,4 @@
-(defproject org.drift-db/drift-db "1.1.5-SNAPSHOT"
+(defproject org.drift-db/drift-db "1.1.5"
   :description "A database interface for use with drift."
   :dependencies [[clojure-tools "1.1.2"]
                  [org.clojure/tools.logging "0.2.3"]])
