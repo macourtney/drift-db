@@ -37,6 +37,11 @@ any keyword into a string, and replaces dashes with underscores."}
     {} 
     row))
 
+(defn clean-record-for-db [record]
+  (reduce
+    #(assoc %1 (column/db-symbol (first %2)) (second %2))
+    {} record))
+
 (defn pair-to-equals [pair]
   (str "(" (column/column-name (first pair)) " = ?)"))
 
@@ -233,7 +238,7 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "insert into: " table " records: " records))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/insert-records (table-name table) records))))
+        (apply sql/insert-records (table-name table) (map clean-record-for-db records)))))
 
   (delete [flavor table where-or-record]
     (do
@@ -245,7 +250,7 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "Update table: " table " where: " where-or-record " record: " record))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/update-values (table-name table) (convert-where where-or-record) record))))
+        (sql/update-values (table-name table) (convert-where where-or-record) (clean-record-for-db record)))))
 
   (create-index [flavor table index-name mods]
     (logging/debug (str "Adding index: " index-name " to table: " table " with mods: " mods))
