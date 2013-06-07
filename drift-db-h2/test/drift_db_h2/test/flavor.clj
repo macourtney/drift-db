@@ -9,6 +9,12 @@
 
 (def db-dir "test/db/data/")
 
+(def username "test")
+
+(def password "password")
+
+(def file-password "file-password")
+
 (deftest test-order-clause
   (is (= (order-clause { :order-by :test}) " ORDER BY test"))
   (is (= (order-clause { :order-by { :expression :test }}) " ORDER BY test"))
@@ -25,7 +31,7 @@
   (column-test/assert-column-map column-spec column-map))
 
 (deftest create-flavor
-  (let [flavor (h2-flavor dbname db-dir)]
+  (let [flavor (h2-flavor dbname db-dir username password true file-password)]
     (try
       (is flavor)
       (drift-db/init-flavor flavor)
@@ -85,7 +91,7 @@
         (is (not (drift-db/table-exists? :test)))))))
 
 (deftest test-rows
-  (let [flavor (h2-flavor dbname db-dir)]
+  (let [flavor (h2-flavor dbname db-dir username password true file-password)]
     (try
       (is flavor)
       (drift-db/init-flavor flavor)

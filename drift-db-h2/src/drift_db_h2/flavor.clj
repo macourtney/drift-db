@@ -11,18 +11,6 @@
     [org.h2.jdbcx JdbcDataSource]
     [org.h2.jdbc JdbcClob]))
 
-(defn
-#^{:doc "Returns an h2 datasource for a ."}
-  create-datasource
-    ([connection-url] (create-datasource connection-url nil nil))
-    ([connection-url username password]
-      (let [h2-datasource (new JdbcDataSource)]
-        (. h2-datasource setURL connection-url)
-        (when (and username password)
-          (. h2-datasource setUser username)
-          (. h2-datasource setPassword password))
-        h2-datasource)))
-
 (defn-
 #^{ :doc "Cleans up the given value, loading any clobs into memory." }
   clean-value [value]
@@ -121,12 +109,13 @@ dashes with underscores."}
   (when-let [clause (get select-map :order-by)]
     (str " ORDER BY " (order-str clause))))
 
-(deftype H2Flavor [dbname db-dir]
+(deftype H2Flavor [dbname db-dir username password encrypt? file-password]
   drift-db-protocol/Flavor
   (db-map [flavor]
     (let [subprotocol "h2"
           db-directory (or db-dir "db/data/")
-          subname (str db-directory dbname)]
+          subname (str db-directory dbname (when encrypt? ";CIPHER=AES"))
+          password (if encrypt? (str password " " (or file-password password)) password)]
       { :flavor flavor
 
         ;; The name of the JDBC driver to use.
@@ -137,9 +126,12 @@ dashes with underscores."}
 
         ;; The database path.
         :subname subname
-
-        ;; A datasource for the database.
-        :datasource (create-datasource (format "jdbc:%s:%s" subprotocol subname)) }))
+        
+        ;; The database username
+        :username username
+        
+        ;; The combined file password and database password
+        :password password }))
 
   (execute-query [flavor sql-vector]
     (do
@@ -247,5 +239,7 @@ dashes with underscores."}
 
 (defn h2-flavor
   ([dbname] (h2-flavor dbname nil))
-  ([dbname db-dir]
-    (H2Flavor. dbname db-dir)))
+  ([dbname db-dir] (h2-flavor dbname db-dir nil nil false nil))
+  ([dbname db-dir username password encrypt?] (h2-flavor dbname db-dir username password encrypt? nil))
+  ([dbname db-dir username password encrypt? file-password]
+    (H2Flavor. dbname db-dir username password encrypt? file-password)))
