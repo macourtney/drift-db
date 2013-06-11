@@ -239,7 +239,8 @@ dashes with underscores."}
 
 (defn h2-flavor
   ([dbname] (h2-flavor dbname nil))
-  ([dbname db-dir] (h2-flavor dbname db-dir nil nil false nil))
+  ([dbname db-dir] (h2-flavor dbname db-dir nil nil))
+  ([dbname db-dir username password] (h2-flavor dbname db-dir username password false))
   ([dbname db-dir username password encrypt?] (h2-flavor dbname db-dir username password encrypt? nil))
   ([dbname db-dir username password encrypt? file-password]
     (H2Flavor. dbname db-dir username password encrypt? file-password)))

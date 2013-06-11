@@ -31,6 +31,10 @@
   (column-test/assert-column-map column-spec column-map))
 
 (deftest create-flavor
+  (is (h2-flavor dbname))
+  (is (h2-flavor dbname db-dir))
+  (is (h2-flavor dbname db-dir username password))
+  (is (h2-flavor dbname db-dir username password true))
   (let [flavor (h2-flavor dbname db-dir username password true file-password)]
     (try
       (is flavor)
