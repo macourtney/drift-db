@@ -5,25 +5,25 @@
             [drift-db.core :as drift-db]))
 
 (defn assert-name [column name]
-  (is (= (column-protocol/name column) name)))
+  (is (= (when column (column-protocol/name column)) name)))
 
 (defn assert-type [column type]
-  (is (= (column-protocol/type column) type)))
+  (is (= (when column (column-protocol/type column)) type)))
 
 (defn assert-length [column length]
-  (is (= (column-protocol/length column) length)))
+  (is (= (when column (column-protocol/length column)) length)))
 
 (defn assert-precision [column precision]
-  (is (= (column-protocol/precision column) precision)))
+  (is (= (when column (column-protocol/precision column)) precision)))
 
 (defn assert-scale [column scale]
-  (is (= (column-protocol/scale column) scale)))
+  (is (= (when column (column-protocol/scale column)) scale)))
 
 (defn assert-nullable? [column nullable?]
-  (is (= (column-protocol/nullable? column) nullable?)))
+  (is (= (when column (column-protocol/nullable? column)) nullable?)))
 
 (defn assert-primary-key? [column primary-key?]
-  (is (= (column-protocol/primary-key? column) (or primary-key? false))))
+  (is (= (when column (column-protocol/primary-key? column)) (or primary-key? false))))
 
 (defn assert-column-map [column column-map]
   (assert-name column (:name column-map))

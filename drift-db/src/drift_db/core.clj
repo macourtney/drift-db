@@ -146,13 +146,13 @@
 (defn column-name
   "Given a column name or column spec, this function returns the column name."
   [column]
-  (keyword
-    (cond
-      (map? column) (get column :name)
-      (keyword? column) (name column)
-      (string? column) column
-      (satisfies? column-protocol/Column column) (column-protocol/name column)
-      :else (throw (RuntimeException. (str "Don't know how to get the name for a column of type: " (type column)))))))
+  (cond
+    (map? column) (flavor-protocol/table-column-name @drift-db-flavor (get column :name))
+    (keyword? column) (flavor-protocol/table-column-name @drift-db-flavor column)
+    (string? column) (flavor-protocol/table-column-name @drift-db-flavor column)
+    (satisfies? column-protocol/Column column) (flavor-protocol/table-column-name @drift-db-flavor
+                                                                                  (column-protocol/name column))
+    :else (throw (RuntimeException. (str "Don't know how to get the name for a column of type: " (type column))))))
 
 (defn column-name=
   "Returns true if both of the given columns specs or names have equal column names."

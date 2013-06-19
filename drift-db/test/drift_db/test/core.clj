@@ -3,7 +3,58 @@
   (:use [drift-db.core])
   (:use [clojure.test])
   (:require [drift-db.column.column :as column]
+            [drift-db.protocol :as drift-db-protocol]
             [drift-db.spec :as spec]))
+
+(deftype TestFlavor []
+  drift-db-protocol/Flavor
+  (db-map [flavor])
+
+  (execute-query [flavor sql-vector])
+
+  (execute-commands [flavor sql-strings])
+
+  (sql-find [flavor select-map])
+
+  (create-table [flavor table specs])
+
+  (drop-table [flavor table])
+
+  (table-exists? [flavor table])
+
+  (describe-table [flavor table])
+
+  (add-column [flavor table spec])
+
+  (drop-column [flavor table column])
+
+  (update-column [flavor table column spec]) 
+
+  (format-date [flavor date])
+
+  (format-date-time [flavor date])
+
+  (format-time [flavor date])
+
+  (insert-into [flavor table records])
+
+  (delete [flavor table where-or-record])
+
+  (update [flavor table where-or-record record])
+
+  (create-index [flavor table index-name mods])
+
+  (drop-index [flavor table index-name])
+
+  (table-column-name [flavor column]
+                     (if (satisfies? column/Column column)
+                       (column-name (column/name column))
+                       (name column))))
+
+(use-fixtures :once (fn [test]
+                     (init-flavor (TestFlavor.))
+                     (test)
+                     (init-flavor nil)))
 
 (defn assert-spec-type [column-spec]
   (is (= (spec/type column-spec) :column)))
@@ -62,11 +113,11 @@
   (assert-integer-spec (integer :test { :fail :fail }) :test))
 
 (deftest test-column-name
-  (is (= (column-name :foo) :foo))
-  (is (= (column-name "foo") :foo))
-  (is (= (column-name { :name :foo }) :foo))
-  (is (= (column-name { :name "foo" }) :foo))
-  (is (= (column-name (integer :foo)) :foo)))
+  (is (= (column-name :foo) "foo"))
+  (is (= (column-name "foo") "foo"))
+  (is (= (column-name { :name :foo }) "foo"))
+  (is (= (column-name { :name "foo" }) "foo"))
+  (is (= (column-name (integer :foo)) "foo")))
 
 (deftest test-column-name=
   (is (column-name= :foo :foo))

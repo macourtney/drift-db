@@ -225,7 +225,9 @@ any keyword into a string, and replaces dashes with underscores."}
   (drop-index [flavor table index-name]
     (logging/debug (str "Dropping index: " index-name " on table: " table))
     (drift-db-protocol/execute-commands flavor
-      [(str "DROP INDEX " (column/db-symbol index-name) " ON " (table-name table))])))
+      [(str "DROP INDEX " (column/db-symbol index-name) " ON " (table-name table))]))
+
+  (table-column-name [flavor column] (column/column-name column)))
 
 (defn mysql-flavor
   ([username password dbname] (mysql-flavor username password dbname "localhost"))

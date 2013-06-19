@@ -29,13 +29,15 @@
 
 (defn
 #^{:doc "Returns the given string surrounded by double quotes."}
-  identifier-quote [s]
-  (str "\"" s "\""))
+  identifier-quote [symbol-name]
+  (when symbol-name
+    (str "\"" symbol-name "\"")))
 
 (defn db-symbol
   "Converts the given symbol-name which can be a string or keyword, and converts it to a proper database symbol."
   [symbol-name]
-  (identifier-quote (conjure-loading-utils/dashes-to-underscores (name symbol-name))))
+  (when symbol-name
+    (identifier-quote (conjure-loading-utils/dashes-to-underscores (name symbol-name)))))
 
 (defn
 #^{:doc "Returns the given key or string as valid column name. Basically turns 

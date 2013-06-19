@@ -235,7 +235,9 @@ dashes with underscores."}
   (drop-index [flavor table index-name]
     (logging/debug (str "Dropping index: " index-name " on table: " table))
     (drift-db-protocol/execute-commands flavor
-      [(str "DROP INDEX IF EXISTS " (h2-column/db-symbol index-name))])))
+      [(str "DROP INDEX IF EXISTS " (h2-column/db-symbol index-name))]))
+
+  (table-column-name [flavor column] (h2-column/column-name column)))
 
 (defn h2-flavor
   ([dbname] (h2-flavor dbname nil))

@@ -1,7 +1,8 @@
 (ns drift-db-postgresql.test.flavor
   (:use drift-db-postgresql.flavor
         clojure.test)
-  (:require [drift-db.core :as drift-db]
+  (:require [clojure.tools.logging :as logging]
+            [drift-db.core :as drift-db]
             [drift-db-postgresql.test.column :as column-test]))
 
 (def dbname "drift_db_test")
@@ -99,6 +100,7 @@
       (drift-db/create-table table-name
         (drift-db/string column-name { :length 20 :not-null true :primary-key true }))
       (is (drift-db/table-exists? table-name))
+      (is (drift-db/column-exists? table-name column-name))
       (let [test-row-name "blah"
             test-row-name2 "blah2"
             test-row { column-name test-row-name }

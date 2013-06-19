@@ -203,7 +203,7 @@ any keyword into a string, and replaces dashes with underscores."}
       { :name table
         :columns (map column/parse-column 
                       (drift-db-protocol/execute-query flavor 
-                        [(str "SELECT column_name, data_type, character_maximum_length, numeric_scale, numeric_precision, is_nullable, column_default FROM information_schema.columns WHERE table_name = '" (name table) "';")]))})) ; 
+                        [(str "SELECT column_name, data_type, character_maximum_length, numeric_scale, numeric_precision, is_nullable, column_default FROM information_schema.columns WHERE table_name = '" (conjure-loading-utils/dashes-to-underscores (name table)) "';")]))})) ; 
 
   (add-column [flavor table spec]
     (drift-db-protocol/execute-commands flavor
@@ -262,7 +262,9 @@ any keyword into a string, and replaces dashes with underscores."}
   (drop-index [flavor table index-name]
     (logging/debug (str "Dropping index: " index-name " on table: " table))
     (drift-db-protocol/execute-commands flavor
-      [(str "DROP INDEX IF EXISTS " (column/db-symbol index-name))])))
+      [(str "DROP INDEX IF EXISTS " (column/db-symbol index-name))]))
+
+  (table-column-name [flavor column] (column/column-name column)))
 
 (defn postgresql-flavor
   ([username password dbname] (postgresql-flavor username password dbname "localhost"))

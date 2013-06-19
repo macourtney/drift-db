@@ -28,7 +28,8 @@
 (defn db-symbol
   "Converts the given symbol-name which can be a string or keyword, and converts it to a proper database symbol."
   [symbol-name]
-  (conjure-loading-utils/dashes-to-underscores (name symbol-name)))
+  (when symbol-name
+    (conjure-loading-utils/dashes-to-underscores (name symbol-name))))
 
 (defn
 #^{:doc "Returns the given key or string as valid column name. Basically turns 

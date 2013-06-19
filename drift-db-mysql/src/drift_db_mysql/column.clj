@@ -27,13 +27,15 @@
 
 (defn
 #^{:doc "Returns the given string surrounded by backquotes."}
-  backquote [s]
-  (str "`" s "`"))
+  backquote [symbol-name]
+  (when symbol-name
+    (str "`" symbol-name "`")))
 
 (defn db-symbol
   "Converts the given symbol-name which can be a string or keyword, and converts it to a proper database symbol."
   [symbol-name]
-  (backquote (conjure-loading-utils/dashes-to-underscores (name symbol-name))))
+  (when symbol-name
+    (backquote (conjure-loading-utils/dashes-to-underscores (name symbol-name)))))
 
 (defn
 #^{:doc "Returns the given key or string as valid column name. Basically turns 

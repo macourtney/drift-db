@@ -102,6 +102,7 @@
       (drift-db/create-table :test
         (drift-db/string :name { :length 20 :not-null true :primary-key true }))
       (is (drift-db/table-exists? :test))
+      (is (drift-db/column-exists? :test :name))
       (let [test-row-name "blah"
             test-row-name2 "blah2"
             test-row { :name test-row-name }

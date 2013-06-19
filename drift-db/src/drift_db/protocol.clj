@@ -76,5 +76,9 @@
        method - The name of the method to use. Optional, uses the database's default if missing. Supported values: btree, hash
        direction - The direction of the index order. Either ascending or descending. Optional.
        nulls - Where the nulls should be in the index order. Either first or last. Optional.")
-  
-  (drop-index [flavor table index-name] "Drops the given index."))
+
+  (drop-index [flavor table index-name] "Drops the given index.")
+
+  (table-column-name [flavor column]
+    "Returns the string representation of the name of the given column. The string representation must be a valid name
+     for use in the database of this flavor."))
