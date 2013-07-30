@@ -52,7 +52,7 @@ any keyword into a string, and replaces dashes with underscores."}
 any string into a keyword, and replaces underscores with dashes." }
   column-name-key [column-name]
   (when column-name
-    (keyword (conjure-loading-utils/underscores-to-dashes (.toLowerCase (name column-name))))))
+    (keyword (conjure-loading-utils/underscores-to-dashes (name column-name)))))
 
 (defn nullable?
   "Returns true if the given columns spec is nullable which means not-null is false or not set or auto-increment is

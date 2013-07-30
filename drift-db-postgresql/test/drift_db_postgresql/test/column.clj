@@ -5,7 +5,10 @@
             [drift-db.core :as drift-db]))
 
 (defn assert-name [column name]
-  (is (= (when column (column-protocol/name column)) name)))
+  (is (= (when column (column-protocol/name column)) name))
+  (when column
+    (when (not (= (column-protocol/name column) name))
+      (throw (RuntimeException. (str "Column names not equal: " (column-protocol/name column) " != " name))))))
 
 (defn assert-type [column type]
   (is (= (when column (column-protocol/type column)) type)))
@@ -44,19 +47,19 @@
   (assert-column-map (parse-column { :default "NULL" :key "" :data-type "bytea" :column-name "data" })
                      { :name :data, :type :byte-array })
   (assert-column-map (parse-column { :default "NULL" :key "PRI" :is-nullable "NO" :data-type "character varying" :column-name "NAME" :character-maximum-length 20 })
-                     { :length 20, :not-null true, :primary-key true, :name :name, :type :string })
+                     { :length 20, :not-null true, :primary-key true, :name :NAME, :type :string })
   (assert-column-map (parse-column { :default "NULL" :key "" :data-type "date" :column-name "CREATED_AT" })
-                     { :name :created-at, :type :date })
+                     { :name :CREATED-AT, :type :date })
   (assert-column-map (parse-column { :default "NULL" :key "" :data-type "timestamp without time zone" :column-name "EDITED_AT" })
-                     { :name :edited-at, :type :date-time })
+                     { :name :EDITED-AT, :type :date-time })
   (assert-column-map (parse-column { :default "NULL" :key "" :data-type "integer" :column-name "FOO" })
-                     { :name :foo, :type :integer })
+                     { :name :FOO, :type :integer })
   (assert-column-map (parse-column { :default "NULL" :key "" :data-type "numeric" :column-name "BAR" :numeric-scale 5 :numeric-precision 10 })
-                     { :precision 10 :scale 5 :name :bar, :type :decimal })
+                     { :precision 10 :scale 5 :name :BAR, :type :decimal })
   (assert-column-map (parse-column { :default "NULL", :key "", :data-type "text", :column-name "DESCRIPTION" })
-                     { :name :description, :type :text })
+                     { :name :DESCRIPTION, :type :text })
   (assert-column-map (parse-column { :default "NULL" :key "" :data-type "time without time zone" :column-name "DELETED_AT" })
-                     { :name :deleted-at, :type :time }))
+                     { :name :DELETED-AT, :type :time }))
 
 (deftest test-db-type
   (is (= (db-type (drift-db/boolean :name)) "BOOLEAN"))
