@@ -57,7 +57,7 @@ any keyword into a string, and replaces dashes with underscores."}
   (if select-or-list
     (if (string? select-or-list)
       select-or-list
-      (clojure-str/join ", " (map name select-or-list)))
+      (clojure-str/join ", " (map #(if (keyword? %1) (column/column-name %1) (name %1)) select-or-list)))
     "*"))
 
 (defn select-clause
