@@ -37,10 +37,19 @@ any keyword into a string, and replaces dashes with underscores."}
     {} 
     row))
 
-(defn clean-record-for-db [record]
-  (reduce
-    #(assoc %1 (column/db-symbol (first %2)) (second %2))
-    {} record))
+(defn clean-record-for-db
+  "Cleans the given record, preparing it for insertion into the db. Calls column/db-symbol on each of the keys in the
+given record."
+  [record]
+    (reduce
+      #(assoc %1 (column/db-symbol (first %2)) (second %2))
+      {} record))
+
+(defn clean-all-records-for-db
+  "Calls clean-record-for-db for each record in the given sequence of records and returns the result in a new sequence.
+If the record is nil, it is removed from the result sequence."
+  [records]
+  (map clean-record-for-db (filter identity records)))
 
 (defn pair-to-equals [pair]
   (str "(" (column/column-name (first pair)) " = ?)"))
@@ -238,7 +247,7 @@ any keyword into a string, and replaces dashes with underscores."}
     (do
       (logging/debug (str "insert into: " table " records: " records))
       (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/insert-records (table-name table) (map clean-record-for-db records)))))
+        (apply sql/insert-records (table-name table) (clean-all-records-for-db records)))))
 
   (delete [flavor table where-or-record]
     (do

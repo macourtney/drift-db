@@ -105,7 +105,7 @@
             test-row-name2 "blah2"
             test-row { column-name test-row-name }
             test-row2 { column-name test-row-name2 }]
-        (drift-db/insert-into table-name test-row)
+        (drift-db/insert-into table-name test-row nil)
         (is (= (first (drift-db/sql-find { :table table-name :where [(str column-name-str " = '" test-row-name "'")] :limit 1
                                            :order-by column-name }))
                test-row))
