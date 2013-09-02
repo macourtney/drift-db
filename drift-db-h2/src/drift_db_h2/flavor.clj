@@ -37,7 +37,7 @@ dashes with underscores."}
   (reduce #(assoc %1 (h2-column/column-name (first %2)) (second %2)) {} record))
 
 (defn convert-records [records]
-  (map convert-record records))
+  (map convert-record (filter identity records)))
 
 (defn pair-to-equals [pair]
   (str "(" (h2-column/column-name (first pair)) " = ?)"))

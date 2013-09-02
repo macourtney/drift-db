@@ -107,7 +107,7 @@
             test-row-name2 "blah2"
             test-row { :name test-row-name }
             test-row2 { :name test-row-name2 }]
-        (drift-db/insert-into :test test-row)
+        (drift-db/insert-into :test test-row nil)
         (is (= (first (drift-db/sql-find { :table :test :where [(str "NAME = '" test-row-name "'")] :limit 1 :order-by :name })) 
                test-row))
         (drift-db/update :test ["NAME = ?" test-row-name] { :name test-row-name2 })
