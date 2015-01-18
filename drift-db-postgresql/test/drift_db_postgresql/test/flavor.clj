@@ -27,6 +27,7 @@
     (try
       (is flavor)
       (drift-db/init-flavor flavor)
+      (drift-db/drop-table-if-exists :test)
       (drift-db/create-table :test
         (drift-db/integer :id { :auto-increment true :primary-key true })
         (drift-db/string :name { :length 20 :not-null true })
@@ -49,7 +50,9 @@
         (is (= (get table-description :name) :test))
         (is (doall (get table-description :columns)))
         (is (= (count (get table-description :columns)) (count expected-columns)))
-        (doseq [column-pair (map #(list %1 %2) (get table-description :columns) (reverse expected-columns))]
+        (doseq [column-pair (map #(list %1 %2)
+                                 (get table-description :columns)
+                                 expected-columns)]
           (column-test/assert-column-map (first column-pair) (second column-pair))))
       (is (drift-db/column-exists? :test :id))
       (is (drift-db/column-exists? :test "bar"))
@@ -99,6 +102,7 @@
     (try
       (is flavor)
       (drift-db/init-flavor flavor)
+      (drift-db/drop-table table-name)
       (drift-db/create-table table-name
         (drift-db/string column-name { :length 20 :not-null true :primary-key true })
         (drift-db/string column-name2 { :length 20 }))

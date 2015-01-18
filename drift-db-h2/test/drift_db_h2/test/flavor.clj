@@ -58,7 +58,7 @@
                               { :name :description, :type :text }
                               { :name :deleted-at, :type :time }
                               { :name :foo :type :boolean }]]
-        (is (= (get table-description :name) :test))
+        (is (= (get table-description :name) "test"))
         (is (get table-description :columns))
         (is (= (count (get table-description :columns)) (count expected-columns)))
         (doseq [column-pair (map #(list %1 %2) (get table-description :columns) expected-columns)]

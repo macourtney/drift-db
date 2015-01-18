@@ -7,29 +7,41 @@
             [drift-db.protocol :as drift-db-protocol]
             [drift-db-h2.column :as h2-column])
   (:import
+    [java.sql Clob]
     [java.text SimpleDateFormat]
     [org.h2.jdbcx JdbcDataSource]
     [org.h2.jdbc JdbcClob]))
 
-(defn-
-#^{ :doc "Cleans up the given value, loading any clobs into memory." }
-  clean-value [value]
-  (if (and value (instance? JdbcClob value))
-    (.getSubString value 1 (.length value))
-    value))
+(defn clob-string [clob]
+  (when clob
+    (let [clob-stream (.getCharacterStream clob)]
+      (try
+        (clojure-str/join
+          "\n" (take-while identity (repeatedly #(.readLine clob-stream))))
+        (catch Exception e
+          (logging/error (str "An error occured while reading a clob: " e)))))))
 
-(defn
-#^{:doc "Returns the given key or string as valid table name. Basically turns any keyword into a string, and replaces
-dashes with underscores."}
-  table-name [table]
+(defn- clean-value
+  "Cleans up the given value, loading any clobs into memory."
+  [value]
+  (cond
+    (instance? Clob value) (clob-string value)
+    (instance? JdbcClob value) (clob-string value)
+    :else value))
+
+(defn table-name
+  "Returns the given key or string as valid table name. Basically turns any keyword into a string, and replaces
+dashes with underscores."
+  [table]
   (conjure-loading-utils/dashes-to-underscores (conjure-string-utils/str-keyword table)))
 
-(defn-
-#^{ :doc "Cleans up the given row, loading any clobs into memory." }
-  clean-row [row]
+(defn- clean-row
+  "Cleans up the given row, loading any clobs into memory."
+  [row]
   (reduce 
     (fn [new-map pair] 
-        (assoc new-map (h2-column/column-name-key (first pair)) (clean-value (second pair))))
+        (assoc new-map (h2-column/column-name-key (first pair))
+               (clean-value (second pair))))
     {} 
     row))
 
@@ -136,18 +148,16 @@ dashes with underscores."}
   (execute-query [flavor sql-vector]
     (do
       (logging/debug (str "Executing query: " sql-vector))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/with-query-results rows sql-vector
-          (doall (map clean-row rows))))))
+      (sql/query (drift-db-protocol/db-map flavor) sql-vector
+          :row-fn clean-row)))
 
   (execute-commands [flavor sql-strings]
-    (do
-      (logging/debug (str "Executing update: " (seq sql-strings)))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/do-commands sql-strings))))
+    (logging/debug (str "Executing update: " (seq sql-strings)))
+    (apply sql/db-do-commands (drift-db-protocol/db-map flavor) sql-strings))
 
   (sql-find [flavor select-map]
-    (let [select-str (str "SELECT " (select-clause select-map) " FROM " (table-name (get select-map :table))
+    (let [select-str (str "SELECT " (select-clause select-map) " FROM " 
+                       (table-name (get select-map :table))
                        (where-clause select-map)
                        (order-clause select-map)
                        (limit-clause select-map)
@@ -156,31 +166,36 @@ dashes with underscores."}
         (vec (cons select-str (where-values select-map))))))
 
   (create-table [flavor table specs]
-    (do
-      (logging/debug (str "Create table: " table " with specs: " specs))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/create-table (table-name table) (map h2-column/spec-vec specs)))))
+    (logging/debug (str "Create table: " table " with specs: " specs))
+    (drift-db-protocol/execute-commands flavor
+      [(apply sql/create-table-ddl (table-name table)
+              (map h2-column/spec-vec specs))]))
 
   (drop-table [flavor table]
-    (do
-      (logging/debug (str "Drop table: " (table-name table)))
-      (when (some #(= (.toUpperCase (table-name table)) %)
-              (map #(get % :table-name) (drift-db-protocol/execute-query flavor ["SHOW TABLES"])))
-        (sql/with-connection (drift-db-protocol/db-map flavor)
-          (sql/drop-table (table-name table))))))
+    (logging/debug (str "Drop table: " (table-name table)))
+    (let [clean-table-name (table-name table)
+          h2-table-name (clojure-str/upper-case clean-table-name)]
+      (when (drift-db-protocol/table-exists? flavor clean-table-name)
+        (drift-db-protocol/execute-commands
+          flavor
+          [(sql/drop-table-ddl clean-table-name)]))))
 
   (table-exists? [flavor table]
     (try
-      (let [results (drift-db-protocol/execute-query flavor [(str "SELECT * FROM " (table-name table) " LIMIT 1")])]
+      (let [results (drift-db-protocol/execute-query
+                      flavor
+                      [(str "SELECT * FROM " (table-name table) " LIMIT 1")])]
         true)
       (catch Exception e false)))
 
   (describe-table [flavor table]
     (do
       (logging/debug (str "Describe table: " table))
-      { :name table
+      { :name (table-name table)
         :columns (map h2-column/parse-column
-                      (drift-db-protocol/execute-query flavor [(str "SHOW COLUMNS FROM " (table-name table))])) }))
+                      (drift-db-protocol/execute-query
+                        flavor
+                        [(str "SHOW COLUMNS FROM " (table-name table))])) }))
 
   (add-column [flavor table spec]
     (drift-db-protocol/execute-commands flavor
@@ -209,28 +224,28 @@ dashes with underscores."}
     (. (new SimpleDateFormat "HH:mm:ss") format date))
 
   (insert-into [flavor table records]
-    (do
-      (logging/debug (str "insert into: " table " records: " records))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (apply sql/insert-records (table-name table) (convert-records records)))))
+    (logging/debug (str "insert into: " table " records: " records))
+    (apply sql/insert! (drift-db-protocol/db-map flavor) (table-name table)
+           (convert-records records)))
 
   (delete [flavor table where-or-record]
-    (do
-      (logging/debug (str "Delete from " table " where " where-or-record))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/delete-rows (table-name table) (convert-where where-or-record)))))
+    (logging/debug (str "Delete from " table " where " where-or-record))
+    (sql/delete! (drift-db-protocol/db-map flavor) (table-name table)
+                 (convert-where where-or-record)))
 
   (update [flavor table where-or-record record]
-    (do
-      (logging/debug (str "Update table: " table " where: " where-or-record " record: " record))
-      (sql/with-connection (drift-db-protocol/db-map flavor)
-        (sql/update-values (table-name table) (convert-where where-or-record) (convert-record record)))))
+    (logging/debug "Update table:" table "where:" where-or-record "record:"
+                   record)
+    (sql/update! (drift-db-protocol/db-map flavor) (table-name table)
+                 (convert-record record) (convert-where where-or-record)))
 
   (create-index [flavor table index-name mods]
     (logging/debug (str "Adding index: " index-name " to table: " table " with mods: " mods))
     (drift-db-protocol/execute-commands flavor
-      [(str "CREATE " (when (:unique? mods) "UNIQUE ") "INDEX IF NOT EXISTS " (h2-column/db-symbol index-name) " ON "
-            (table-name table) "(" (clojure-str/join "," (map h2-column/column-name (:columns mods))) ")")]))
+      [(str "CREATE " (when (:unique? mods) "UNIQUE ") "INDEX IF NOT EXISTS "
+            (h2-column/db-symbol index-name) " ON " (table-name table) "("
+            (clojure-str/join "," (map h2-column/column-name (:columns mods)))
+            ")")]))
 
   (drop-index [flavor table index-name]
     (logging/debug (str "Dropping index: " index-name " on table: " table))

@@ -27,9 +27,9 @@
            [drift_db.column.text TextColumn]
            [drift_db.column.time TimeColumn]))
 
-(defn
-#^{:doc "Returns the given string surrounded by double quotes."}
-  identifier-quote [symbol-name]
+(defn identifier-quote
+"Returns the given string surrounded by double quotes."
+[symbol-name]
   (when symbol-name
     (str "\"" symbol-name "\"")))
 
@@ -39,18 +39,18 @@
   (when symbol-name
     (identifier-quote (conjure-loading-utils/dashes-to-underscores (name symbol-name)))))
 
-(defn
-#^{:doc "Returns the given key or string as valid column name. Basically turns 
-any keyword into a string, and replaces dashes with underscores."}
-  column-name [column]
+(defn column-name
+"Returns the given key or string as valid column name. Basically turns 
+any keyword into a string, and replaces dashes with underscores."
+[column]
   (if (satisfies? column-protocol/Column column)
     (column-name (column-protocol/name column))
     (db-symbol column)))
 
-(defn
-#^{ :doc "Returns the given valid column name as a keyword. Basically turns 
-any string into a keyword, and replaces underscores with dashes." }
-  column-name-key [column-name]
+(defn column-name-key
+"Returns the given valid column name as a keyword. Basically turns 
+any string into a keyword, and replaces underscores with dashes."
+[column-name]
   (when column-name
     (keyword (conjure-loading-utils/underscores-to-dashes (name column-name)))))
 
@@ -60,9 +60,9 @@ any string into a keyword, and replaces underscores with dashes." }
   [column-spec]
   (or (column-protocol/nullable? column-spec) (column-protocol/auto-increment? column-spec)))
 
-(defn
-#^{:doc "Returns the not null spec vector from the given mods map."}
-  not-null-mod [column-spec]
+(defn not-null-mod
+"Returns the not null spec vector from the given mods map."
+[column-spec]
   (if (nullable? column-spec)
     []
     ["NOT NULL"]))
@@ -73,9 +73,9 @@ any string into a keyword, and replaces underscores with dashes." }
   [column-spec]
   (and (column-protocol/primary-key? column-spec) (not (column-protocol/auto-increment? column-spec))))
 
-(defn
-#^{:doc "Returns the primary key spec vector from the given mods map."}
-  primary-key-mod [column-spec]
+(defn primary-key-mod
+"Returns the primary key spec vector from the given mods map."
+[column-spec]
   (if (primary-key? column-spec)
     ["PRIMARY KEY"]
     []))
